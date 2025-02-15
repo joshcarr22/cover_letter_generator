@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cover Letter Generator</title>
+</head>
+<body>
+    <h1>Cover Letter Generator</h1>
+    
+    <form action="/" method="POST" enctype="multipart/form-data">
+        <label for="job_url">Job Posting URL:</label>
+        <input type="text" id="job_url" name="job_url" required>
+        <br><br>
+
+        <label for="user_letter">Upload Your Existing Cover Letter:</label>
+        <input type="file" id="user_letter" name="user_letter" required>
+        <br><br>
+
+        <button type="submit">Generate Cover Letter</button>
+    </form>
+
+    {% if cover_letter %}
+        <h2>Generated Cover Letter:</h2>
+        <pre>{{ cover_letter }}</pre>
+    {% endif %}
+
+    {% if error %}
+        <p style="color: red;">{{ error }}</p>
+    {% endif %}
+</body>
+</html>
