@@ -51,20 +51,21 @@ def interpret_job_details(raw_text):
 
     Return only the JSON output.
     """
-try:
-    client = openai.OpenAI()  # Initialize OpenAI Client
 
-    response = client.chat.completions.create(
-        model="gpt-4-turbo",
-        messages=[
-            {"role": "system", "content": "You are a professional cover letter writer."},
-            {"role": "user", "content": prompt}
-        ]
-    )
+    try:
+        client = openai.OpenAI()  # ✅ Initialize OpenAI Client
 
-    cover_letter = response.choices[0].message.content  # Extract the generated cover letter
-    
-    return cover_letter  # Return the extracted content
-except Exception as e:
-    raise Exception(f"Error interpreting job details: {e}")
+        response = client.chat.completions.create(
+            model="gpt-4-turbo",
+            messages=[
+                {"role": "system", "content": "You are a professional job analyzer."},
+                {"role": "user", "content": prompt}
+            ]
+        )
 
+        job_details = response.choices[0].message.content  # ✅ Extract the structured JSON data
+
+        return job_details  # ✅ Properly returning the JSON output inside the function
+
+    except Exception as e:
+        raise Exception(f"Error interpreting job details: {e}")
