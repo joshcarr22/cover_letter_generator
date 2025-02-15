@@ -5,10 +5,15 @@ from cover_letter_generator import generate_cover_letter
 
 app = Flask(__name__)
 
-# Get your OpenAI API key from an environment variable
-# (Set this in your hosting environment; for local testing, you can use a .env file or set it manually.)
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "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")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")  # Securely load API key from environment
 
+# =============================================================================
+# Initialize OpenAI Client
+# =============================================================================
+if not OPENAI_API_KEY:
+    raise ValueError("Missing OpenAI API key. Set it as an environment variable: OPENAI_API_KEY")
+
+client = OpenAI()  # OpenAI auto-detects the API key from env variables
 # Set the path to your cover letter template
 TEMPLATE_PATH = os.path.join(os.getcwd(), "templates", "old_cover_letter_template.txt")
 
