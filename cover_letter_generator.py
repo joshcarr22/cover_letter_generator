@@ -1,87 +1,78 @@
 import os
+import openai  # ✅ Correct import
 import logging
-from openai import OpenAI
 from utils.job_scraper import scrape_job_details, interpret_job_details
 
-# =============================================================================
-# Configuration – Secure API Key Handling
-# =============================================================================
-JOB_URL = "https://www.seek.com.au/job/81408443?type=standard&ref=search-standalone&origin=cardTitle#sol=669480783bf9c91a72aaefe0ebf722b9c7269ee9"
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")  # Securely load API key from environment
-
-# =============================================================================
-# Initialize OpenAI Client
-# =============================================================================
-if not OPENAI_API_KEY:
-    raise ValueError("Missing OpenAI API key. Set it as an environment variable: OPENAI_API_KEY")
-
-client = OpenAI()  # OpenAI auto-detects the API key from env variables
+# ✅ Ensure OpenAI API key is retrieved from environment variables
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def generate_cover_letter(job_details, user_cover_letter):
-    """
-    Generates a personalized cover letter based on job details and the user's existing cover letter.
-    """
+    """Generates a personalized cover letter based on job details and the user's existing cover letter."""
     prompt = f"""
-Generate a new, highly relevant cover letter for the following job posting using the structured details provided.
+    Generate a professional, highly relevant cover letter for the job posting below.
 
-Job Details:
-{job_details}
+    Job Details:
+    {job_details}
 
-Here is the user's existing cover letter, which includes their relevant skills and experiences:
-{user_cover_letter}
+    Here is the user's existing cover letter, which includes their relevant skills and experiences:
+    {user_cover_letter}
 
-The new letter should:
-- Keep a professional tone
-- Match the job details as closely as possible
-- Use the user's past experiences in the most relevant way
-- Improve clarity and conciseness
+    The new letter should:
+    - Maintain a professional tone
+    - Match the job details as closely as possible
+    - Use the user's past experiences in the most relevant way
+    - Improve clarity and conciseness
 
-Output only the cover letter, without additional text.
-"""
+    Output only the cover letter, with no additional text.
+    """
     try:
-        response = client.chat.completions.create(
-            model="gpt-4-turbo",  # Use the best available model
+        response = openai.ChatCompletion.create(
+            model="gpt-4-turbo",
             messages=[
                 {"role": "system", "content": "You are a professional cover letter writer."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=1000
         )
-        return response.choices[0].message.content.strip()
+        return response["choices"][0]["message"]["content"].strip()
     except Exception as e:
         logging.error(f"OpenAI API call failed: {e}")
-        raise Exception(f"OpenAI API call failed: {e}")
+        return f"Error: {str(e)}"
 
 def main():
-    """
-    Main script function to scrape job details, interpret them, and generate a cover letter.
-    """
+    """Main function to generate a cover letter."""
+    # Prompt the user for a job URL and existing cover letter
+    job_url = input("Enter the job posting URL: ")
+    cover_letter_path = input("Enter the path to your existing cover letter text file: ")
+
+    # Scrape the job posting details using the URL
     try:
-        raw_text = scrape_job_details(JOB_URL)
+        raw_text = scrape_job_details(job_url)
     except Exception as e:
         logging.error(f"Error scraping job details: {e}")
-        raise Exception(f"Error scraping job details: {e}")
+        return
 
+    # Use OpenAI to extract structured job details from the scraped text
     try:
         job_details = interpret_job_details(raw_text)
     except Exception as e:
         logging.error(f"Error interpreting job details: {e}")
-        raise Exception(f"Error interpreting job details: {e}")
+        return
 
-    # Load the user's existing cover letter template
-    template_path = os.path.join(os.getcwd(), "templates", "old_cover_letter_template.txt")
-    if not os.path.exists(template_path):
-        raise FileNotFoundError(f"Template file not found: {template_path}")
-    
+    # Read the existing cover letter from a text file
+    if not os.path.exists(cover_letter_path):
+        logging.error(f"Cover letter file not found: {cover_letter_path}")
+        return
+
     try:
-        with open(template_path, 'r') as file:
+        with open(cover_letter_path, 'r') as file:
             user_cover_letter = file.read()
     except Exception as e:
-        logging.error(f"Error reading the template file: {e}")
-        raise Exception(f"Error reading the template file: {e}")
+        logging.error(f"Error reading the cover letter file: {e}")
+        return
 
     logging.info("Generating new cover letter based on job details and user template...")
     new_cover_letter = generate_cover_letter(job_details, user_cover_letter)
@@ -95,9 +86,10 @@ def main():
             file.write(new_cover_letter)
     except Exception as e:
         logging.error(f"Error writing new cover letter to file: {e}")
-        raise Exception(f"Error writing new cover letter to file: {e}")
+        return
 
     logging.info(f"New cover letter has been generated and saved to '{output_path}'")
+    print(f"\nGenerated Cover Letter:\n{'-'*40}\n{new_cover_letter}\n{'-'*40}")
 
 if __name__ == "__main__":
     main()
