@@ -1,10 +1,15 @@
 import os
 import requests
 from bs4 import BeautifulSoup
-import openai  # ✅ Correct import
+import openai
 
 # ✅ Ensure OpenAI API key is retrieved from environment variables
-openai.api_key = os.getenv("OPENAI_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+if not OPENAI_API_KEY:
+    raise ValueError("Missing OpenAI API key. Set it as an environment variable.")
+
+client = openai.OpenAI(api_key=OPENAI_API_KEY)  # ✅ Initialize OpenAI client
 
 def scrape_job_details(url):
     """Fetch the job posting page and extract the main job details."""
@@ -33,32 +38,13 @@ def scrape_job_details(url):
     # Fallback: return all visible text.
     return soup.get_text(separator="\n").strip()
 
-def interpret_job_details(raw_text):
+def interpret_job_details(prompt):
     """Use OpenAI API to interpret job posting and extract key details."""
-    prompt = f"""
-    Analyze the job posting text below and return a structured JSON format with these keys:
-    - "job_title"
-    - "job_description"
-    - "experience"
-    - "skills"
-    - "software"
-    - "additional_requirements"
-    - "preferred_qualifications"
-    - "other_notes"
-
-    Job Posting Text:
-    {raw_text}
-
-    Return only the JSON output.
-    """
-
     try:
-        client = openai.OpenAI()  # ✅ Initialize OpenAI Client
-
         response = client.chat.completions.create(
             model="gpt-4-turbo",
             messages=[
-                {"role": "system", "content": "You are a professional job analyzer."},
+                {"role": "system", "content": "You are a professional job posting analyst."},
                 {"role": "user", "content": prompt}
             ]
         )
@@ -69,3 +55,4 @@ def interpret_job_details(raw_text):
 
     except Exception as e:
         raise Exception(f"Error interpreting job details: {e}")
+
