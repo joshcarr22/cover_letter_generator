@@ -2,10 +2,14 @@ from flask import Flask, render_template, request
 import os
 from utils.job_scraper import scrape_job_details, interpret_job_details
 from cover_letter_generator import generate_cover_letter
-
+from openai import OpenAI
 app = Flask(__name__)
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")  # Securely load API key from environment
+
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")  # ✅ Load from environment
+
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 # =============================================================================
 # Initialize OpenAI Client
