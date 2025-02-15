@@ -8,25 +8,20 @@
 <body>
     <h1>Cover Letter Generator</h1>
     
+    {% if error %}
+        <p style="color: red;">{{ error }}</p>
+    {% endif %}
+
     <form action="/" method="POST" enctype="multipart/form-data">
         <label for="job_url">Job Posting URL:</label>
         <input type="text" id="job_url" name="job_url" required>
         <br><br>
 
         <label for="user_letter">Upload Your Existing Cover Letter:</label>
-        <input type="file" id="user_letter" name="user_letter" required>
+        <input type="file" id="user_letter" name="user_letter" accept=".txt" required>
         <br><br>
 
         <button type="submit">Generate Cover Letter</button>
     </form>
-
-    {% if cover_letter %}
-        <h2>Generated Cover Letter:</h2>
-        <pre>{{ cover_letter }}</pre>
-    {% endif %}
-
-    {% if error %}
-        <p style="color: red;">{{ error }}</p>
-    {% endif %}
 </body>
 </html>
