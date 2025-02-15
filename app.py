@@ -3,32 +3,14 @@ import openai  # ✅ Correct import
 from flask import Flask, request, render_template, jsonify
 from utils.job_scraper import scrape_job_details, interpret_job_details
 
-
-app = Flask(__name__, template_folder="templates")  # ✅ Explicitly define templates folder
-
-@app.route("/", methods=["GET", "POST"])
-def index():
-    if request.method == "POST":
-        job_url = request.form.get("job_url")
-        user_letter = request.files.get("user_letter")
-
-        if not job_url or not user_letter:
-            return render_template("index.html", error="Both Job URL and cover letter are required.")
-
-        # Placeholder cover letter generation logic
-        cover_letter = f"Generated Cover Letter for {job_url}"
-
-        return render_template("index.html", cover_letter=cover_letter)
-
-    return render_template("index.html")
-
-
-
 # ✅ Ensure OpenAI API key is retrieved from environment variables
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
+# ✅ Explicitly define the templates folder
+app = Flask(__name__, template_folder="templates")
+
 @app.route("/", methods=["GET", "POST"])
-def index():
+def homepage():  # ✅ Renamed function to avoid duplicate conflicts
     if request.method == "POST":
         job_url = request.form.get("job_url")
         user_letter = request.files.get("user_letter")
