@@ -3,18 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generated Cover Letter</title>
+    <title>Your Generated Cover Letter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1, h2 {
+            text-align: left;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .back-link {
+            display: block;
+            margin-top: 20px;
+            text-align: left;
+        }
+    </style>
 </head>
 <body>
+
     <h1>Your Generated Cover Letter</h1>
 
     <h2>Job Details:</h2>
-    <pre>{{ job_summary | default("No job details available.") }}</pre>
+    {% if job_details %}
+        <p><strong>Job Title:</strong> {{ job_details.job_title }}</p>
+        <p><strong>Company Name:</strong> {{ job_details.company_name }}</p>
+        <p><strong>Required Skills:</strong> {{ job_details.skills | join(", ") }}</p>
+        <p><strong>Software:</strong> {{ job_details.software | join(", ") }}</p>
+        <p><strong>Preferred Qualifications:</strong> {{ job_details.preferred_qualifications | join(", ") }}</p>
+        <p><strong>Additional Requirements:</strong> {{ job_details.additional_requirements | join(", ") }}</p>
+    {% else %}
+        <p>No job details available.</p>
+    {% endif %}
 
     <h2>New Cover Letter:</h2>
-    <pre>{{ cover_letter | default("Error: Cover letter generation failed.") }}</pre>
+    <pre>
+        {% if cover_letter %}
+            {{ cover_letter }}
+        {% else %}
+            Error: Cover letter generation failed.
+        {% endif %}
+    </pre>
 
-    <br>
-    <a href="/">Generate Another Cover Letter</a>
+    <a class="back-link" href="/">Generate Another Cover Letter</a>
+
 </body>
 </html>
