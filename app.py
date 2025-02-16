@@ -65,10 +65,18 @@ def interpret_job_details(raw_text):
             ]
         )
         job_details_str = response.choices[0].message.content.strip()
-        job_details = json.loads(job_details_str)
+        
+        if not job_details_str:
+            raise ValueError("OpenAI returned an empty response.")
+        
+        try:
+            job_details = json.loads(job_details_str)
+        except json.JSONDecodeError as e:
+            print("Debugging: Invalid JSON Response from OpenAI")
+            print(f"Raw Response:\n{job_details_str}")
+            raise ValueError(f"Error parsing JSON: {e}")
+        
         return job_details
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Error parsing JSON: {e}")
     except Exception as e:
         raise Exception(f"Error interpreting job details: {e}")
 
@@ -83,7 +91,11 @@ def homepage():
         
         user_letter_text = user_letter.read().decode("utf-8")
         scraped_text = scrape_job_details(job_url)
-        job_details = interpret_job_details(scraped_text)
+        
+        try:
+            job_details = interpret_job_details(scraped_text)
+        except Exception as e:
+            return render_template("index.html", error=str(e))
         
         prompt = f"""
         Generate a professional, concise cover letter based on the following details:
