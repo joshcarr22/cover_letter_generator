@@ -2,6 +2,8 @@ import os
 import openai
 from flask import Flask, request, render_template, jsonify
 from utils.job_scraper import scrape_job_details, interpret_job_details
+from datetime import datetime
+current_date = datetime.today().strftime("%d %B %Y")
 
 # ✅ Ensure OpenAI API key is retrieved from environment variables
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
