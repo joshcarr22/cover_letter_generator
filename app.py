@@ -4,7 +4,6 @@ import requests
 from flask import Flask, request, render_template, jsonify
 from bs4 import BeautifulSoup
 import openai
-from openai import ChatCompletion
 from datetime import datetime
 
 # Initialize Flask app
@@ -57,7 +56,7 @@ def interpret_job_details(raw_text):
     Return only a valid JSON object.
     """
     try:
-        response = ChatCompletion.create(
+        response = openai.ChatCompletion.create(
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": "You are an expert at extracting structured data from job descriptions."},
@@ -115,7 +114,7 @@ def homepage():
         """
         
         try:
-            response = ChatCompletion.create(
+            response = openai.ChatCompletion.create(
                 model="gpt-4o",
                 messages=[
                     {"role": "system", "content": "You are a professional cover letter writer."},
