@@ -1,13 +1,13 @@
 import os
 import json
 import requests
-from flask import Flask, request, render_template, jsonify
+from flask import Flask, request, jsonify
 from bs4 import BeautifulSoup
 from openai import OpenAI
 from datetime import datetime
 
 # Initialize Flask app
-app = Flask(__name__, template_folder="templates")
+app = Flask(__name__)
 
 # Initialize OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -82,58 +82,40 @@ def interpret_job_details(raw_text):
         print(f"Debugging: {e}")
         raise Exception(f"Error interpreting job details: {e}")
 
-@app.route("/", methods=["GET", "POST"])
-def homepage():
-    if request.method == "POST":
-        job_url = request.form.get("job_url")
-        user_letter = request.files.get("user_letter")
-        
-        if not job_url or not user_letter:
-            return render_template("index.html", error="Both Job URL and cover letter are required.")
-        
-        user_letter_text = user_letter.read().decode("utf-8")
-        scraped_text = scrape_job_details(job_url)
-        
-        try:
-            job_details = interpret_job_details(scraped_text)
-        except Exception as e:
-            return render_template("index.html", error=str(e))
-        
-        prompt = f"""
-        Generate a professional, concise cover letter based on the following details:
-        
-        Company: {job_details.get('company_name', 'Unknown Company')}
-        Job Title: {job_details.get('job_title', 'Job Title')}
-        Skills Required: {', '.join(job_details.get('skills', []))}
-        Experience: {job_details.get('experience', 'Not specified')}
-        
-        Candidate’s Existing Letter:
-        {user_letter_text}
-        
-        Ensure the letter is well-structured, engaging, and reflects the job description requirements.
-        """
-        
-        try:
-            response = client.chat.completions.create(
-                model="gpt-4",
-                messages=[
-                    {"role": "system", "content": "You are a professional cover letter writer."},
-                    {"role": "user", "content": prompt}
-                ]
-            )
-            cover_letter = response.choices[0].message.content.strip()
-        except Exception as e:
-            return render_template("result.html", job_details=job_details, cover_letter=f"Error: {e}")
-        
-        return render_template(
-            "result.html",
-            job_details=job_details,
-            cover_letter=cover_letter,
-            company_name=job_details.get('company_name', 'Unknown Company'),
-            job_title=job_details.get('job_title', 'Job Title'),
-            today_date=datetime.today().strftime('%d %B %Y')
+@app.route("/process-cover-letter", methods=["POST"])
+def process_cover_letter():
+    """API endpoint to process cover letter text or file."""
+    if 'file' in request.files:
+        # Handle file upload
+        file = request.files['file']
+        if file.filename.endswith('.txt'):
+            cover_letter_text = file.read().decode('utf-8')
+        elif file.filename.endswith('.docx'):
+            import docx
+            doc = docx.Document(file)
+            cover_letter_text = "\n".join([para.text for para in doc.paragraphs])
+        else:
+            return jsonify({"error": "Unsupported file type"}), 400
+    else:
+        # Handle text input
+        data = request.json
+        cover_letter_text = data.get('cover_letter_text')
+        if not cover_letter_text:
+            return jsonify({"error": "No cover letter text provided"}), 400
+
+    # Call ChatGPT to process the cover letter
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a professional cover letter writer."},
+                {"role": "user", "content": cover_letter_text}
+            ]
         )
-    return render_template("index.html")
+        processed_letter = response.choices[0].message.content.strip()
+        return jsonify({"processed_letter": processed_letter})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000, debug=True)
