@@ -1,17 +1,16 @@
 import os
 import openai
-from flask import Flask, request, render_template
-from utils.job_scraper import interpret_job_details
+from flask import Flask, request, render_template, jsonify
+from utils.job_scraper import scrape_job_details, interpret_job_details
 
 # ✅ Ensure OpenAI API key is retrieved from environment variables
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
 if not OPENAI_API_KEY:
-    raise ValueError("Missing OpenAI API key. Set it as an environment variable.")
+    raise ValueError("Missing OpenAI API key. Set it as an environment variable: OPENAI_API_KEY")
 
-client = openai.OpenAI(api_key=OPENAI_API_KEY)  # ✅ Initialize OpenAI client
+openai.api_key = OPENAI_API_KEY
 
-# ✅ Explicitly define the templates folder
+# ✅ Initialize Flask app
 app = Flask(__name__, template_folder="templates")
 
 @app.route("/", methods=["GET", "POST"])
@@ -26,30 +25,21 @@ def homepage():
         # Read user’s uploaded letter
         user_letter_text = user_letter.read().decode("utf-8")
 
-        # Scrape and process job details
-        raw_text = scrape_job_details(job_url)
-        job_details = interpret_job_details(raw_text)
+        # Scrape job details
+        scraped_text = scrape_job_details(job_url)
 
-        # Extract variables from JSON
-        job_title = job_details.get("job_title", "Unknown Position")
-        company_name = job_details.get("company_name", "Unknown Company")
-        skills = ", ".join(job_details.get("skills_needed", []))
-        location = job_details.get("location", "Not specified")
-        application_deadline = job_details.get("application_deadline", "No deadline specified")
+        if not scraped_text or len(scraped_text) < 50:
+            return render_template("result.html", job_summary="No job details available.", cover_letter="Error: Could not scrape job details.")
 
-        # Include a summary before the cover letter
-        job_summary = f"""
-        Job Title: {job_title}
-        Company: {company_name}
-        Location: {location}
-        Required Skills: {skills}
-        Application Deadline: {application_deadline}
-        """
+        # Interpret job posting
+        job_summary = interpret_job_details(scraped_text)
 
-        # Construct prompt for OpenAI with the **correct** details
+        # Generate new cover letter using OpenAI
+        client = openai.OpenAI()  # ✅ Correct OpenAI initialization
         prompt = f"""
         Create a personalized cover letter based on this job posting:
 
+        Job Details (Summarized):
         {job_summary}
 
         User’s existing cover letter:
@@ -59,15 +49,21 @@ def homepage():
         """
 
         try:
-            cover_letter = interpret_job_details(prompt)  # ✅ Now using updated job details
+            response = client.chat.completions.create(
+                model="gpt-4-turbo",
+                messages=[
+                    {"role": "system", "content": "You are a professional cover letter writer."},
+                    {"role": "user", "content": prompt}
+                ]
+            )
 
-            return render_template("result.html", job_summary=job_summary, cover_letter=cover_letter)
-
+            cover_letter = response.choices[0].message.content
         except Exception as e:
-            return render_template("index.html", error=f"Error generating cover letter: {e}")
+            return render_template("result.html", job_summary=job_summary, cover_letter=f"Error: {e}")
+
+        return render_template("result.html", job_summary=job_summary, cover_letter=cover_letter)
 
     return render_template("index.html")
 
-
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000, debug=True)
+    app.run(host="0.0.0.0", port=10000, debug=True)  # ✅ Ensure correct port for Render
