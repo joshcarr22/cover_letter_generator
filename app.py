@@ -39,47 +39,56 @@ def scrape_job_details(url):
 def interpret_job_details(raw_text):
     """Use OpenAI API to interpret job posting and extract key details."""
     prompt = f"""
-    Extract and format job details in structured JSON:
-    - "job_title"
-    - "company_name"
-    - "job_description"
-    - "experience"
-    - "skills"
-    - "software"
-    - "additional_requirements"
-    - "preferred_qualifications"
-    - "other_notes"
+    Extract job details as a **valid JSON object**.
     
-    Job Posting:
+    Ensure the response follows this format exactly:
+    {{
+        "job_title": "Mechanical Engineer",
+        "company_name": "XYZ Corp",
+        "job_description": "Responsible for mechanical design.",
+        "experience": "3+ years required",
+        "skills": ["3D CAD", "AutoCAD", "MATLAB"],
+        "software": ["SolidWorks"],
+        "additional_requirements": ["Bachelor’s degree"],
+        "preferred_qualifications": ["FEA experience"],
+        "other_notes": ["Hybrid work available"]
+    }}
+
+    **Rules:**
+    - Respond **ONLY** with valid JSON. No additional text.
+    - Do **NOT** include explanations or headers.
+
+    **Job Posting Text:**
     {raw_text}
-    
-    Return only a valid JSON object.
     """
     try:
-        response = openai.ChatCompletion.create(
+        client = openai.OpenAI()
+        response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You are an expert at extracting structured data from job descriptions."},
+                {"role": "system", "content": "You are an AI that extracts structured job details."},
                 {"role": "user", "content": prompt}
             ]
         )
+
         job_details_str = response.choices[0].message.content.strip()
-        
+
         if not job_details_str:
-            print("Debugging: OpenAI returned an empty response.")
+            print("🚨 OpenAI returned an empty response. Retrying...")
             raise ValueError("OpenAI returned an empty response.")
-        
-        print(f"Raw Response:\n{job_details_str}")  # Debugging line to check raw response
-        
+
+        print(f"🚀 Raw API Response:\n{job_details_str}")
+
+        # Ensure JSON is properly formatted
         try:
             job_details = json.loads(job_details_str)
+            return job_details
         except json.JSONDecodeError as e:
-            print("Debugging: Invalid JSON Response from OpenAI")
+            print("🚨 Debugging: Invalid JSON Response from OpenAI")
             raise ValueError(f"Error parsing JSON: {e}")
-        
-        return job_details
+
     except Exception as e:
-        print(f"Debugging: {e}")
+        print(f"🚨 Error: {e}")
         raise Exception(f"Error interpreting job details: {e}")
 
 @app.route("/", methods=["GET", "POST"])
@@ -114,7 +123,7 @@ def homepage():
         """
         
         try:
-            response = openai.ChatCompletion.create(
+            response = client.chat.completions.create(
                 model="gpt-4o",
                 messages=[
                     {"role": "system", "content": "You are a professional cover letter writer."},
