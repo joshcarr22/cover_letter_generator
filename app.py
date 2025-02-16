@@ -1,6 +1,7 @@
 import os
 import openai
 import requests
+import json
 from flask import Flask, request, render_template
 from bs4 import BeautifulSoup
 from datetime import datetime
@@ -50,35 +51,42 @@ def scrape_job_details(url):
 def interpret_job_details(raw_text):
     """Use OpenAI GPT-4o to structure job details into JSON format."""
     prompt = f"""
-    Extract key job details and return a structured JSON object with these fields:
-    - "job_title"
-    - "company_name"
-    - "job_description"
-    - "experience"
-    - "skills"
-    - "software"
-    - "additional_requirements"
-    - "preferred_qualifications"
-    - "other_notes"
+    Extract key job details and return a structured JSON object. The response must be strictly formatted as valid JSON.
 
     Job Posting Text:
     {raw_text}
 
-    Return only the JSON output.
+    Format:
+    {{
+        "job_title": "...",
+        "company_name": "...",
+        "job_description": "...",
+        "experience": ["..."],
+        "skills": ["..."],
+        "software": ["..."],
+        "additional_requirements": ["..."],
+        "preferred_qualifications": ["..."],
+        "other_notes": ["..."]
+    }}
     """
 
     try:
         client = openai.OpenAI()
         response = client.chat.completions.create(
-            model="gpt-4o",  # ✅ Using GPT-4o instead of GPT-4 Turbo
+            model="gpt-4o",  # ✅ Using GPT-4o
             messages=[
                 {"role": "system", "content": "You are an expert at analyzing job descriptions and extracting structured details."},
                 {"role": "user", "content": prompt}
             ]
         )
 
-        job_details = response.choices[0].message.content.strip()
-        return eval(job_details)  # Convert string JSON to dictionary
+        job_details_str = response.choices[0].message.content.strip()
+        
+        # Ensure valid JSON response
+        job_details = json.loads(job_details_str)  # ✅ Use json.loads() instead of eval()
+        return job_details  
+    except json.JSONDecodeError as e:
+        raise Exception(f"Error parsing job details as JSON: {e}")
     except Exception as e:
         raise Exception(f"Error interpreting job details: {e}")
 
