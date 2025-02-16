@@ -70,11 +70,12 @@ def interpret_job_details(raw_text):
             print("Debugging: OpenAI returned an empty response.")
             raise ValueError("OpenAI returned an empty response.")
         
+        print(f"Raw Response:\n{job_details_str}")  # Debugging line to check raw response
+        
         try:
             job_details = json.loads(job_details_str)
         except json.JSONDecodeError as e:
             print("Debugging: Invalid JSON Response from OpenAI")
-            print(f"Raw Response:\n{job_details_str}")
             raise ValueError(f"Error parsing JSON: {e}")
         
         return job_details
