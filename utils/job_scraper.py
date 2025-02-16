@@ -4,12 +4,7 @@ from bs4 import BeautifulSoup
 import openai
 
 # ✅ Ensure OpenAI API key is retrieved from environment variables
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-if not OPENAI_API_KEY:
-    raise ValueError("Missing OpenAI API key. Set it as an environment variable.")
-
-client = openai.OpenAI(api_key=OPENAI_API_KEY)  # ✅ Initialize OpenAI client
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 def scrape_job_details(url):
     """Fetch the job posting page and extract the main job details."""
@@ -35,39 +30,39 @@ def scrape_job_details(url):
             if len(text) > 100:
                 return text
 
-    # Fallback: return all visible text.
     return soup.get_text(separator="\n").strip()
 
 def interpret_job_details(raw_text):
     """Use OpenAI API to interpret job posting and extract key details."""
+    client = openai.OpenAI()  # ✅ Initialize OpenAI Client
+
     prompt = f"""
     Analyze the job posting text below and return a structured JSON format with these keys:
     - "job_title"
-    - "company_name"
     - "job_description"
-    - "experience_required"
-    - "skills_needed"
-    - "software_requirements"
+    - "experience"
+    - "skills"
+    - "software"
     - "additional_requirements"
     - "preferred_qualifications"
-    - "location"
-    - "application_deadline"
+    - "other_notes"
 
     Job Posting Text:
     {raw_text}
 
-    Return only the JSON output, no extra text.
+    Return only the JSON output.
     """
-    
+
     try:
         response = client.chat.completions.create(
             model="gpt-4-turbo",
-            messages=[{"role": "user", "content": prompt}]
+            messages=[
+                {"role": "system", "content": "You are a professional cover letter writer."},
+                {"role": "user", "content": prompt}
+            ]
         )
 
-        job_details = response.choices[0].message.content  # Extract the structured JSON
-        return job_details
-
+        job_summary = response.choices[0].message.content  # Extract the generated JSON job summary
+        return job_summary
     except Exception as e:
         raise Exception(f"Error interpreting job details: {e}")
-
