@@ -67,6 +67,7 @@ def interpret_job_details(raw_text):
         job_details_str = response.choices[0].message.content.strip()
         
         if not job_details_str:
+            print("Debugging: OpenAI returned an empty response.")
             raise ValueError("OpenAI returned an empty response.")
         
         try:
@@ -78,6 +79,7 @@ def interpret_job_details(raw_text):
         
         return job_details
     except Exception as e:
+        print(f"Debugging: {e}")
         raise Exception(f"Error interpreting job details: {e}")
 
 @app.route("/", methods=["GET", "POST"])
