@@ -1,7 +1,7 @@
 import os
 import openai
 import requests
-from flask import Flask, request, render_template, jsonify
+from flask import Flask, request, render_template
 from bs4 import BeautifulSoup
 from datetime import datetime
 
@@ -18,7 +18,7 @@ def scrape_job_details(url):
         response = requests.get(url)
         response.raise_for_status()
     except Exception as e:
-        raise Exception(f"Error fetching URL '{url}': {e}")
+        raise Exception(f"Error fetching job URL '{url}': {e}")
 
     soup = BeautifulSoup(response.text, 'html.parser')
 
@@ -46,11 +46,11 @@ def scrape_job_details(url):
 
     return job_text, company_name
 
-# Function to interpret job details using OpenAI
+# Function to interpret job details using OpenAI GPT-4o
 def interpret_job_details(raw_text):
-    """Use OpenAI to structure job details into JSON format."""
+    """Use OpenAI GPT-4o to structure job details into JSON format."""
     prompt = f"""
-    Extract and return job details in structured JSON format with these fields:
+    Extract key job details and return a structured JSON object with these fields:
     - "job_title"
     - "company_name"
     - "job_description"
@@ -70,9 +70,9 @@ def interpret_job_details(raw_text):
     try:
         client = openai.OpenAI()
         response = client.chat.completions.create(
-            model="gpt-4-turbo",
+            model="gpt-4o",  # ✅ Using GPT-4o instead of GPT-4 Turbo
             messages=[
-                {"role": "system", "content": "You are an expert at analyzing job descriptions."},
+                {"role": "system", "content": "You are an expert at analyzing job descriptions and extracting structured details."},
                 {"role": "user", "content": prompt}
             ]
         )
@@ -82,22 +82,22 @@ def interpret_job_details(raw_text):
     except Exception as e:
         raise Exception(f"Error interpreting job details: {e}")
 
-# Function to generate cover letter
+# Function to generate cover letter using GPT-4o
 def generate_cover_letter(job_details, user_letter):
-    """Use OpenAI to generate a customized cover letter."""
+    """Use OpenAI GPT-4o to generate a tailored cover letter."""
     current_date = datetime.today().strftime("%d %B %Y")  # Get today's date
     prompt = f"""
-    Generate a professional and well-structured cover letter based on the following job details:
+    Generate a personalized, well-structured cover letter based on these job details:
 
-    Job Title: {job_details['job_title']}
-    Company Name: {job_details['company_name']}
-    Required Skills: {", ".join(job_details['skills'])}
-    Preferred Qualifications: {", ".join(job_details['preferred_qualifications'])}
+    Job Title: {job_details.get('job_title', 'Unknown Title')}
+    Company Name: {job_details.get('company_name', 'Unknown Company')}
+    Required Skills: {", ".join(job_details.get('skills', []))}
+    Preferred Qualifications: {", ".join(job_details.get('preferred_qualifications', []))}
 
-    - Keep language varied and avoid repetition.
-    - Use synonyms where appropriate.
+    - Ensure varied sentence structures to avoid repetition.
+    - Use synonyms where appropriate and maintain a natural flow.
     - Match the company's terminology and job role as much as possible.
-    - Ensure the cover letter remains concise and engaging.
+    - Keep the letter concise and engaging.
     - Use today's date ({current_date}) in the header.
 
     User's Existing Cover Letter:
@@ -110,7 +110,7 @@ def generate_cover_letter(job_details, user_letter):
     try:
         client = openai.OpenAI()
         response = client.chat.completions.create(
-            model="gpt-4-turbo",
+            model="gpt-4o",  # ✅ Using GPT-4o
             messages=[
                 {"role": "system", "content": "You are a professional cover letter writer."},
                 {"role": "user", "content": prompt}
