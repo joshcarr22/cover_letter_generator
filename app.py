@@ -26,12 +26,31 @@ def homepage():
         # Read user’s uploaded letter
         user_letter_text = user_letter.read().decode("utf-8")
 
-        # Construct prompt for OpenAI
+        # Scrape and process job details
+        raw_text = scrape_job_details(job_url)
+        job_details = interpret_job_details(raw_text)
+
+        # Extract variables from JSON
+        job_title = job_details.get("job_title", "Unknown Position")
+        company_name = job_details.get("company_name", "Unknown Company")
+        skills = ", ".join(job_details.get("skills_needed", []))
+        location = job_details.get("location", "Not specified")
+        application_deadline = job_details.get("application_deadline", "No deadline specified")
+
+        # Include a summary before the cover letter
+        job_summary = f"""
+        Job Title: {job_title}
+        Company: {company_name}
+        Location: {location}
+        Required Skills: {skills}
+        Application Deadline: {application_deadline}
+        """
+
+        # Construct prompt for OpenAI with the **correct** details
         prompt = f"""
         Create a personalized cover letter based on this job posting:
 
-        Job Details:
-        {job_url}  # Instead of scraping, we pass the raw job URL
+        {job_summary}
 
         User’s existing cover letter:
         {user_letter_text}
@@ -40,13 +59,15 @@ def homepage():
         """
 
         try:
-            cover_letter = interpret_job_details(prompt)  # ✅ Using the fixed function
+            cover_letter = interpret_job_details(prompt)  # ✅ Now using updated job details
 
-            return render_template("result.html", cover_letter=cover_letter, job_url=job_url)
+            return render_template("result.html", job_summary=job_summary, cover_letter=cover_letter)
+
         except Exception as e:
             return render_template("index.html", error=f"Error generating cover letter: {e}")
 
     return render_template("index.html")
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000, debug=True)
