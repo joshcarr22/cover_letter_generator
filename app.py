@@ -56,8 +56,7 @@ def interpret_job_details(raw_text):
     Return only a valid JSON object.
     """
     try:
-        client = openai.OpenAI()
-        response = client.chat.completions.create(
+        response = openai.ChatCompletion.create(
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": "You are an expert at extracting structured data from job descriptions."},
@@ -115,7 +114,7 @@ def homepage():
         """
         
         try:
-            response = client.chat.completions.create(
+            response = openai.ChatCompletion.create(
                 model="gpt-4o",
                 messages=[
                     {"role": "system", "content": "You are a professional cover letter writer."},
