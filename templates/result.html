@@ -8,12 +8,13 @@
 <body>
     <h1>Your Generated Cover Letter</h1>
 
-    <h3>Job Details:</h3>
-    <pre>{{ job_details }}</pre>
+    <h2>Job Details:</h2>
+    <pre>{{ job_summary | default("No job details available.") }}</pre>
 
-    <h3>New Cover Letter:</h3>
-    <pre>{{ cover_letter }}</pre>
+    <h2>New Cover Letter:</h2>
+    <pre>{{ cover_letter | default("Error: Cover letter generation failed.") }}</pre>
 
+    <br>
     <a href="/">Generate Another Cover Letter</a>
 </body>
 </html>
