@@ -3,14 +3,14 @@ import json
 import requests
 from flask import Flask, request, render_template, jsonify
 from bs4 import BeautifulSoup
-import openai
+from openai import OpenAI
 from datetime import datetime
 
 # Initialize Flask app
 app = Flask(__name__, template_folder="templates")
 
-# Ensure OpenAI API key is retrieved from environment variables
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Initialize OpenAI client
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def scrape_job_details(url):
     """Fetch the job posting page and extract the main job details."""
@@ -56,8 +56,8 @@ def interpret_job_details(raw_text):
     Return only a valid JSON object.
     """
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4o",
+        response = client.chat.completions.create(
+            model="gpt-4",
             messages=[
                 {"role": "system", "content": "You are an expert at extracting structured data from job descriptions."},
                 {"role": "user", "content": prompt}
@@ -114,8 +114,8 @@ def homepage():
         """
         
         try:
-            response = openai.ChatCompletion.create(
-                model="gpt-4o",
+            response = client.chat.completions.create(
+                model="gpt-4",
                 messages=[
                     {"role": "system", "content": "You are a professional cover letter writer."},
                     {"role": "user", "content": prompt}
