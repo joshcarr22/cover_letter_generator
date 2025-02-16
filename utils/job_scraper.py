@@ -38,20 +38,35 @@ def scrape_job_details(url):
     # Fallback: return all visible text.
     return soup.get_text(separator="\n").strip()
 
-def interpret_job_details(prompt):
+def interpret_job_details(raw_text):
     """Use OpenAI API to interpret job posting and extract key details."""
+    prompt = f"""
+    Analyze the job posting text below and return a structured JSON format with these keys:
+    - "job_title"
+    - "company_name"
+    - "job_description"
+    - "experience_required"
+    - "skills_needed"
+    - "software_requirements"
+    - "additional_requirements"
+    - "preferred_qualifications"
+    - "location"
+    - "application_deadline"
+
+    Job Posting Text:
+    {raw_text}
+
+    Return only the JSON output, no extra text.
+    """
+    
     try:
         response = client.chat.completions.create(
             model="gpt-4-turbo",
-            messages=[
-                {"role": "system", "content": "You are a professional job posting analyst."},
-                {"role": "user", "content": prompt}
-            ]
+            messages=[{"role": "user", "content": prompt}]
         )
 
-        job_details = response.choices[0].message.content  # ✅ Extract the structured JSON data
-
-        return job_details  # ✅ Properly returning the JSON output inside the function
+        job_details = response.choices[0].message.content  # Extract the structured JSON
+        return job_details
 
     except Exception as e:
         raise Exception(f"Error interpreting job details: {e}")
