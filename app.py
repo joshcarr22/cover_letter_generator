@@ -6,23 +6,23 @@ from flask_cors import CORS
 from bs4 import BeautifulSoup
 from openai import OpenAI
 from datetime import datetime
-import docx  # Ensure `python-docx` is installed
+import docx  # Required for .docx file handling
 
 # Initialize Flask app
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})  # Allow all origins for API calls
+CORS(app)  # Enable CORS for API calls
 
 # Initialize OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def scrape_job_details(url):
-    """Fetch the job posting page and extract the main job details."""
+    """Fetch the job posting page and extract job details."""
     try:
         response = requests.get(url)
         response.raise_for_status()
     except Exception as e:
-        return f"Error fetching URL '{url}': {e}"
-
+        raise Exception(f"Error fetching URL '{url}': {e}")
+    
     soup = BeautifulSoup(response.text, 'html.parser')
     selectors = [
         {"tag": "div", "attrs": {"data-automation": "jobAdDetails"}},
@@ -40,9 +40,9 @@ def scrape_job_details(url):
     return soup.get_text(separator="\n").strip()
 
 def interpret_job_details(raw_text):
-    """Use OpenAI API to interpret job posting and extract key details."""
+    """Use OpenAI API to extract structured job details."""
     prompt = f"""
-    Extract and format job details in structured JSON:
+    Extract structured job details from the text:
     - "job_title"
     - "company_name"
     - "job_description"
@@ -56,79 +56,74 @@ def interpret_job_details(raw_text):
     Job Posting:
     {raw_text}
     
-    Return only a valid JSON object.
+    Return ONLY valid JSON output.
     """
+    
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You are an expert at extracting structured data from job descriptions."},
+                {"role": "system", "content": "You are an expert at extracting job details into structured JSON."},
                 {"role": "user", "content": prompt}
             ]
         )
         job_details_str = response.choices[0].message.content.strip()
-        
-        if not job_details_str:
-            return {"error": "OpenAI returned an empty response."}
-        
         return json.loads(job_details_str)
-
     except json.JSONDecodeError as e:
-        return {"error": f"Error parsing JSON: {e}"}
+        raise ValueError(f"Error parsing JSON: {e}")
     except Exception as e:
-        return {"error": f"Error interpreting job details: {e}"}
+        raise Exception(f"Error interpreting job details: {e}")
 
 @app.route("/process-cover-letter", methods=["POST"])
 def process_cover_letter():
-    """API endpoint to process cover letter text."""
+    """Generates a structured cover letter following the old template."""
     data = request.json
     cover_letter_text = data.get('cover_letter_text')
+    job_url = data.get('job_url')
     
     if not cover_letter_text:
         return jsonify({"error": "No cover letter text provided"}), 400
-
-    # Call ChatGPT to process the cover letter
+    
+    job_details = scrape_job_details(job_url) if job_url else ""
+    structured_details = interpret_job_details(job_details) if job_details else {}
+    
+    prompt = f"""
+    Create a cover letter in the following structure:
+    
+    1. **Introduction**: Mention job title, company, and why the candidate is a fit.
+    2. **Experience Mappings**: Three bullet points linking past jobs to new job requirements.
+    3. **Closing Paragraph**: Enthusiasm for the role, thanking them, and requesting an interview.
+    
+    Use synonyms if words repeat too often.
+    Job Details:
+    {structured_details}
+    
+    Candidate Experience:
+    {cover_letter_text}
+    """
+    
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": "You are a professional cover letter writer."},
-                {"role": "user", "content": cover_letter_text}
+                {"role": "user", "content": prompt}
             ]
         )
         processed_letter = response.choices[0].message.content
-        return jsonify({"processed_letter": processed_letter})
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/process-cover-letter-file", methods=["POST"])
-def process_cover_letter_file():
-    """Handles file uploads and returns a generated cover letter."""
-    if 'file' not in request.files:
-        return jsonify({"error": "No file uploaded"}), 400
-
-    file = request.files['file']
-    try:
-        if file.filename.endswith('.txt'):
-            cover_letter_text = file.read().decode('utf-8')
-        elif file.filename.endswith('.docx'):
-            doc = docx.Document(file)
-            cover_letter_text = "\n".join([para.text for para in doc.paragraphs])
-        else:
-            return jsonify({"error": "Unsupported file type"}), 400
-
-        # Call ChatGPT to process the cover letter
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": "You are a professional cover letter writer."},
-                {"role": "user", "content": cover_letter_text}
-            ]
-        )
-        processed_letter = response.choices[0].message.content
-        return jsonify({"processed_letter": processed_letter})
-
+        
+        # Identify gaps between experience and job requirements
+        missing_skills = [skill for skill in structured_details.get('skills', []) if skill.lower() not in cover_letter_text.lower()]
+        missing_experience = [exp for exp in structured_details.get('experience', []) if exp.lower() not in cover_letter_text.lower()]
+        
+        notes = {
+            "missing_skills": missing_skills,
+            "missing_experience": missing_experience,
+            "suggestions": "Consider highlighting adjacent or transferable experience if direct experience is missing."
+        }
+        
+        return jsonify({"processed_letter": processed_letter, "notes": notes})
+    
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
