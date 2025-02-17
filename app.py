@@ -6,11 +6,11 @@ from flask_cors import CORS
 from bs4 import BeautifulSoup
 from openai import OpenAI
 from datetime import datetime
-import docx  # Required for .docx file handling
+import docx  # Ensure `python-docx` is installed
 
 # Initialize Flask app
 app = Flask(__name__)
-CORS(app)  # Enable CORS for API calls from WordPress
+CORS(app, resources={r"/*": {"origins": "*"}})  # Allow all origins for API calls
 
 # Initialize OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -21,7 +21,7 @@ def scrape_job_details(url):
         response = requests.get(url)
         response.raise_for_status()
     except Exception as e:
-        raise Exception(f"Error fetching URL '{url}': {e}")
+        return f"Error fetching URL '{url}': {e}"
 
     soup = BeautifulSoup(response.text, 'html.parser')
     selectors = [
@@ -69,14 +69,14 @@ def interpret_job_details(raw_text):
         job_details_str = response.choices[0].message.content.strip()
         
         if not job_details_str:
-            raise ValueError("OpenAI returned an empty response.")
+            return {"error": "OpenAI returned an empty response."}
         
         return json.loads(job_details_str)
-    
+
     except json.JSONDecodeError as e:
-        raise ValueError(f"Error parsing JSON: {e}")
+        return {"error": f"Error parsing JSON: {e}"}
     except Exception as e:
-        raise Exception(f"Error interpreting job details: {e}")
+        return {"error": f"Error interpreting job details: {e}"}
 
 @app.route("/process-cover-letter", methods=["POST"])
 def process_cover_letter():
@@ -109,16 +109,16 @@ def process_cover_letter_file():
         return jsonify({"error": "No file uploaded"}), 400
 
     file = request.files['file']
-    if file.filename.endswith('.txt'):
-        cover_letter_text = file.read().decode('utf-8')
-    elif file.filename.endswith('.docx'):
-        doc = docx.Document(file)
-        cover_letter_text = "\n".join([para.text for para in doc.paragraphs])
-    else:
-        return jsonify({"error": "Unsupported file type"}), 400
-
-    # Call ChatGPT to process the cover letter
     try:
+        if file.filename.endswith('.txt'):
+            cover_letter_text = file.read().decode('utf-8')
+        elif file.filename.endswith('.docx'):
+            doc = docx.Document(file)
+            cover_letter_text = "\n".join([para.text for para in doc.paragraphs])
+        else:
+            return jsonify({"error": "Unsupported file type"}), 400
+
+        # Call ChatGPT to process the cover letter
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
