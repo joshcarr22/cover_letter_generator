@@ -27,4 +27,4 @@ openai>=1.61.0
 gunicorn
 flask
 flask_cors
-python-docx
+python_docx
