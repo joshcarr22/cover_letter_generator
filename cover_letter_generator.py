@@ -1,7 +1,7 @@
 import os
 import openai  # ✅ Correct import
 import logging
-from utils.job_scraper import scrape_job_details, interpret_job_details
+from job_scraper import scrape_job_details, interpret_job_details
 
 # ✅ Ensure OpenAI API key is retrieved from environment variables
 openai.api_key = os.getenv("OPENAI_API_KEY")
