@@ -1,28 +1,28 @@
-import os
 import requests
 from bs4 import BeautifulSoup
-import openai
+import logging
+import json
 
-# ✅ Ensure OpenAI API key is retrieved from environment variables
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def scrape_job_details(url):
-    """Fetch the job posting page and extract the main job details."""
+    """Fetch job details from Seek job posting."""
     try:
         response = requests.get(url)
         response.raise_for_status()
     except Exception as e:
-        raise Exception(f"Error fetching URL '{url}': {e}")
+        logging.error(f"Error fetching URL '{url}': {e}")
+        raise
 
     soup = BeautifulSoup(response.text, 'html.parser')
 
-    # Candidate selectors that might contain the job description.
     selectors = [
         {"tag": "div", "attrs": {"data-automation": "jobAdDetails"}},
         {"tag": "div", "attrs": {"class": "job-description"}},
         {"tag": "div", "attrs": {"class": "description"}},
     ]
-
+    
     for sel in selectors:
         element = soup.find(sel["tag"], attrs=sel["attrs"])
         if element:
@@ -30,15 +30,15 @@ def scrape_job_details(url):
             if len(text) > 100:
                 return text
 
+    logging.warning("No job details found using selectors. Returning full text.")
     return soup.get_text(separator="\n").strip()
 
 def interpret_job_details(raw_text):
-    """Use OpenAI API to interpret job posting and extract key details."""
-    client = openai.OpenAI()  # ✅ Initialize OpenAI Client
-
+    """Extract job details in structured JSON format."""
     prompt = f"""
-    Analyze the job posting text below and return a structured JSON format with these keys:
+    Extract and format job details in structured JSON:
     - "job_title"
+    - "company_name"
     - "job_description"
     - "experience"
     - "skills"
@@ -46,23 +46,28 @@ def interpret_job_details(raw_text):
     - "additional_requirements"
     - "preferred_qualifications"
     - "other_notes"
-
-    Job Posting Text:
+    
+    Job Posting:
     {raw_text}
-
-    Return only the JSON output.
+    
+    Return only a valid JSON object.
     """
-
     try:
         response = client.chat.completions.create(
-            model="gpt-4-turbo",
+            model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You are a professional cover letter writer."},
+                {"role": "system", "content": "You are an expert at extracting structured data from job descriptions."},
                 {"role": "user", "content": prompt}
             ]
         )
-
-        job_summary = response.choices[0].message.content  # Extract the generated JSON job summary
-        return job_summary
+        job_details_str = response.choices[0].message.content.strip()
+        
+        if not job_details_str:
+            raise ValueError("OpenAI returned an empty response.")
+        
+        return json.loads(job_details_str)
+    
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Error parsing JSON: {e}")
     except Exception as e:
         raise Exception(f"Error interpreting job details: {e}")
