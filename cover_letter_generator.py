@@ -1,95 +1,89 @@
 import os
-import openai  # ✅ Correct import
-import logging
-from job_scraper import scrape_job_details, interpret_job_details
+import openai
+from datetime import datetime
 
-# ✅ Ensure OpenAI API key is retrieved from environment variables
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Initialize OpenAI client with API key from environment variable
+client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-def generate_cover_letter(job_details, user_cover_letter):
-    """Generates a personalized cover letter based on job details and the user's existing cover letter."""
+def interpret_job_details(raw_text):
+    """Use OpenAI API to interpret job posting and extract key details."""
     prompt = f"""
-    Generate a professional, highly relevant cover letter for the job posting below.
+    Extract and format job details in structured JSON:
+    - "job_title"
+    - "company_name"
+    - "job_description"
+    - "experience"
+    - "skills"
+    - "software"
+    - "additional_requirements"
+    - "preferred_qualifications"
+    - "other_notes"
 
-    Job Details:
-    {job_details}
+    Job Posting:
+    {raw_text}
 
-    Here is the user's existing cover letter, which includes their relevant skills and experiences:
-    {user_cover_letter}
-
-    The new letter should:
-    - Maintain a professional tone
-    - Match the job details as closely as possible
-    - Use the user's past experiences in the most relevant way
-    - Improve clarity and conciseness
-
-    Output only the cover letter, with no additional text.
+    Return only a valid JSON object.
     """
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4-turbo",
+        response = client.chat.completions.create(
+            model="gpt-4-turbo",  # ✅ Using GPT-4 Turbo
+            messages=[
+                {"role": "system", "content": "You are an expert at extracting structured data from job descriptions."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=1000
+        )
+        job_details_str = response.choices[0].message.content.strip()
+        return eval(job_details_str)  # Convert string JSON to dictionary
+    except Exception as e:
+        raise Exception(f"Error interpreting job details: {e}")
+
+def generate_cover_letter(job_details, user_letter):
+    """Use OpenAI GPT-4 Turbo to generate a tailored cover letter."""
+    current_date = datetime.today().strftime("%d %B %Y")  # Today's date
+    prompt = f"""
+    Generate a personalized, well-structured cover letter based on these job details:
+
+    Job Title: {job_details.get('job_title', 'Unknown Title')}
+    Company Name: {job_details.get('company_name', 'Unknown Company')}
+    Required Skills: {", ".join(job_details.get('skills', []))}
+    Preferred Qualifications: {", ".join(job_details.get('preferred_qualifications', []))}
+
+    - Ensure varied sentence structures to avoid repetition.
+    - Use synonyms where appropriate and maintain a natural flow.
+    - Match the company's terminology and job role as much as possible.
+    - Keep the letter concise and engaging.
+    - Use today's date ({current_date}) in the header.
+
+    User's Existing Cover Letter:
+    {user_letter}
+
+    ---
+    New Cover Letter:
+    """
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4-turbo",  # ✅ Using GPT-4 Turbo
             messages=[
                 {"role": "system", "content": "You are a professional cover letter writer."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=1000
         )
-        return response["choices"][0]["message"]["content"].strip()
+
+        return response.choices[0].message.content.strip()
     except Exception as e:
-        logging.error(f"OpenAI API call failed: {e}")
-        return f"Error: {str(e)}"
-
-def main():
-    """Main function to generate a cover letter."""
-    # Prompt the user for a job URL and existing cover letter
-    job_url = input("Enter the job posting URL: ")
-    cover_letter_path = input("Enter the path to your existing cover letter text file: ")
-
-    # Scrape the job posting details using the URL
-    try:
-        raw_text = scrape_job_details(job_url)
-    except Exception as e:
-        logging.error(f"Error scraping job details: {e}")
-        return
-
-    # Use OpenAI to extract structured job details from the scraped text
-    try:
-        job_details = interpret_job_details(raw_text)
-    except Exception as e:
-        logging.error(f"Error interpreting job details: {e}")
-        return
-
-    # Read the existing cover letter from a text file
-    if not os.path.exists(cover_letter_path):
-        logging.error(f"Cover letter file not found: {cover_letter_path}")
-        return
-
-    try:
-        with open(cover_letter_path, 'r') as file:
-            user_cover_letter = file.read()
-    except Exception as e:
-        logging.error(f"Error reading the cover letter file: {e}")
-        return
-
-    logging.info("Generating new cover letter based on job details and user template...")
-    new_cover_letter = generate_cover_letter(job_details, user_cover_letter)
-
-    # Save the new cover letter
-    output_path = os.path.join(os.getcwd(), "output", "new_cover_letter.txt")
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-
-    try:
-        with open(output_path, 'w') as file:
-            file.write(new_cover_letter)
-    except Exception as e:
-        logging.error(f"Error writing new cover letter to file: {e}")
-        return
-
-    logging.info(f"New cover letter has been generated and saved to '{output_path}'")
-    print(f"\nGenerated Cover Letter:\n{'-'*40}\n{new_cover_letter}\n{'-'*40}")
+        return f"Error generating cover letter: {e}"
 
 if __name__ == "__main__":
-    main()
+    # Sample usage (for local testing)
+    sample_job_text = "We are hiring an Aerospace Engineer with experience in jet engine design and testing."
+    sample_user_letter = "Dear Hiring Manager, I am writing to express my interest in your engineering position."
+
+    try:
+        job_data = interpret_job_details(sample_job_text)
+        cover_letter = generate_cover_letter(job_data, sample_user_letter)
+        print("Generated Cover Letter:\n", cover_letter)
+    except Exception as error:
+        print("Error:", error)
