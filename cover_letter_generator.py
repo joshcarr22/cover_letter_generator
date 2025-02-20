@@ -1,8 +1,9 @@
 import os
 import openai
+import json
 from datetime import datetime
 
-# Initialize OpenAI client with API key from environment variable
+# Initialize OpenAI client using API key
 client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def interpret_job_details(raw_text):
@@ -25,16 +26,20 @@ def interpret_job_details(raw_text):
     Return only a valid JSON object.
     """
     try:
+        # ✅ Correct method for openai>=1.0.0
         response = client.chat.completions.create(
-            model="gpt-4-turbo",  # ✅ Using GPT-4 Turbo
+            model="gpt-4-turbo",  # Using GPT-4 Turbo
             messages=[
                 {"role": "system", "content": "You are an expert at extracting structured data from job descriptions."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=1000
         )
+
         job_details_str = response.choices[0].message.content.strip()
-        return eval(job_details_str)  # Convert string JSON to dictionary
+        return json.loads(job_details_str)  # Parse JSON safely
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Error parsing JSON from OpenAI: {e}")
     except Exception as e:
         raise Exception(f"Error interpreting job details: {e}")
 
@@ -63,8 +68,9 @@ def generate_cover_letter(job_details, user_letter):
     """
 
     try:
+        # ✅ Correct method for openai>=1.0.0
         response = client.chat.completions.create(
-            model="gpt-4-turbo",  # ✅ Using GPT-4 Turbo
+            model="gpt-4-turbo",  # Using GPT-4 Turbo
             messages=[
                 {"role": "system", "content": "You are a professional cover letter writer."},
                 {"role": "user", "content": prompt}
