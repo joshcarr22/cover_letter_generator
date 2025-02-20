@@ -1,10 +1,43 @@
 import os
-import openai
 import json
+import requests
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from bs4 import BeautifulSoup
+from openai import OpenAI
 from datetime import datetime
 
-# Initialize OpenAI client using API key
-client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# Initialize Flask app
+app = Flask(__name__)
+CORS(app)  # Enable CORS for API calls
+
+# Initialize OpenAI client with environment API key
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+def scrape_job_details(url):
+    """Fetch job details from Seek job posting."""
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+    except Exception as e:
+        raise Exception(f"Error fetching URL '{url}': {e}")
+
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    selectors = [
+        {"tag": "div", "attrs": {"data-automation": "jobAdDetails"}},
+        {"tag": "div", "attrs": {"class": "job-description"}},
+        {"tag": "div", "attrs": {"class": "description"}},
+    ]
+    
+    for sel in selectors:
+        element = soup.find(sel["tag"], attrs=sel["attrs"])
+        if element:
+            text = element.get_text(separator="\n").strip()
+            if len(text) > 100:
+                return text
+    
+    return soup.get_text(separator="\n").strip()
 
 def interpret_job_details(raw_text):
     """Use OpenAI API to interpret job posting and extract key details."""
@@ -25,71 +58,71 @@ def interpret_job_details(raw_text):
 
     Return only a valid JSON object.
     """
+
     try:
-        # ✅ Correct method for openai>=1.0.0
         response = client.chat.completions.create(
-            model="gpt-4-turbo",  # Using GPT-4 Turbo
+            model="gpt-4",
             messages=[
                 {"role": "system", "content": "You are an expert at extracting structured data from job descriptions."},
                 {"role": "user", "content": prompt}
-            ],
-            max_tokens=1000
+            ]
         )
-
         job_details_str = response.choices[0].message.content.strip()
-        return json.loads(job_details_str)  # Parse JSON safely
+
+        if not job_details_str:
+            raise ValueError("OpenAI returned an empty response.")
+
+        return json.loads(job_details_str)
+
     except json.JSONDecodeError as e:
-        raise ValueError(f"Error parsing JSON from OpenAI: {e}")
+        raise ValueError(f"Error parsing JSON: {e}")
     except Exception as e:
         raise Exception(f"Error interpreting job details: {e}")
 
-def generate_cover_letter(job_details, user_letter):
-    """Use OpenAI GPT-4 Turbo to generate a tailored cover letter."""
-    current_date = datetime.today().strftime("%d %B %Y")  # Today's date
-    prompt = f"""
-    Generate a personalized, well-structured cover letter based on these job details:
+def generate_cover_letter(job_data):
+    """Generate a personalized cover letter based on extracted job details."""
+    job_title = job_data.get("job_title", "the position")
+    company_name = job_data.get("company_name", "your company")
+    experience_reqs = job_data.get("experience", [])
+    skills_reqs = job_data.get("skills", [])
+    software_reqs = job_data.get("software", [])
+    additional_reqs = job_data.get("additional_requirements", [])
 
-    Job Title: {job_details.get('job_title', 'Unknown Title')}
-    Company Name: {job_details.get('company_name', 'Unknown Company')}
-    Required Skills: {", ".join(job_details.get('skills', []))}
-    Preferred Qualifications: {", ".join(job_details.get('preferred_qualifications', []))}
+    cover_letter = f"""
+    {datetime.today().strftime('%d %B %Y')}
 
-    - Ensure varied sentence structures to avoid repetition.
-    - Use synonyms where appropriate and maintain a natural flow.
-    - Match the company's terminology and job role as much as possible.
-    - Keep the letter concise and engaging.
-    - Use today's date ({current_date}) in the header.
+    {company_name}
+    RE: {job_title} Position
 
-    User's Existing Cover Letter:
-    {user_letter}
+    Dear Hiring Manager,
 
-    ---
-    New Cover Letter:
+    I am excited to apply for the {job_title} role at {company_name}. My experience and skills align with your requirements, and I am confident that I can contribute meaningfully to your team.
+
+    Thank you for considering my application. I look forward to the opportunity to discuss how my background, skills, and enthusiasm align with your needs.
+
+    Kind regards,
+    Joshua Carr
     """
 
-    try:
-        # ✅ Correct method for openai>=1.0.0
-        response = client.chat.completions.create(
-            model="gpt-4-turbo",  # Using GPT-4 Turbo
-            messages=[
-                {"role": "system", "content": "You are a professional cover letter writer."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=1000
-        )
+    return cover_letter
 
-        return response.choices[0].message.content.strip()
+@app.route("/process-cover-letter", methods=["POST"])
+def process_cover_letter():
+    """API endpoint to generate a cover letter from a job URL."""
+    data = request.json
+    job_url = data.get('job_url')
+
+    if not job_url:
+        return jsonify({"error": "No job URL provided"}), 400
+
+    try:
+        raw_text = scrape_job_details(job_url)
+        job_data = interpret_job_details(raw_text)
+        cover_letter = generate_cover_letter(job_data)
+        return jsonify({"cover_letter": cover_letter})
+
     except Exception as e:
-        return f"Error generating cover letter: {e}"
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    # Sample usage (for local testing)
-    sample_job_text = "We are hiring an Aerospace Engineer with experience in jet engine design and testing."
-    sample_user_letter = "Dear Hiring Manager, I am writing to express my interest in your engineering position."
-
-    try:
-        job_data = interpret_job_details(sample_job_text)
-        cover_letter = generate_cover_letter(job_data, sample_user_letter)
-        print("Generated Cover Letter:\n", cover_letter)
-    except Exception as error:
-        print("Error:", error)
+    app.run(host="0.0.0.0", port=10000, debug=True)
