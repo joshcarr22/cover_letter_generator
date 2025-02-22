@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 def scrape_job_details(url):
     """Fetch job details from Seek job posting."""
     try:
+        logger.info(f"Fetching job details from URL: {url}")
         response = requests.get(url)
         response.raise_for_status()
     except Exception as e:
@@ -29,7 +30,7 @@ def scrape_job_details(url):
         raise
 
     soup = BeautifulSoup(response.text, 'html.parser')
-    logger.info(f"Fetched HTML content from {url}")
+    logger.info("Successfully parsed HTML content")
 
     selectors = [
         {"tag": "div", "attrs": {"data-automation": "jobAdDetails"}},
@@ -68,6 +69,7 @@ def interpret_job_details(raw_text):
         
         Return only a valid JSON object.
         """
+        logger.info("Sending request to OpenAI API")
         response = client.chat.completions.create(
             model="gpt-4-turbo",
             messages=[
