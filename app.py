@@ -78,7 +78,14 @@ def interpret_job_details(raw_text):
             ]
         )
         job_details_str = response.choices[0].message.content.strip()
-        logger.info(f"OpenAI response: {job_details_str}")
+
+        # Remove triple backticks and "json" prefix if present
+        if job_details_str.startswith("```json"):
+            job_details_str = job_details_str[7:-3].strip()  # Remove ```json and trailing ```
+        elif job_details_str.startswith("```"):
+            job_details_str = job_details_str[3:-3].strip()  # Remove ``` and trailing ```
+
+        logger.info(f"OpenAI response (cleaned): {job_details_str}")
         return json.loads(job_details_str)
     except json.JSONDecodeError as e:
         logger.error(f"Error parsing JSON: {e}")
