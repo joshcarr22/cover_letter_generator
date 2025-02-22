@@ -115,7 +115,10 @@ def generate_cover_letter(job_data):
         matched_experience = []
         unmatched_skills = []
         
-        for req in experience_reqs + skills_reqs + software_reqs:
+        # Combine all requirements into a single list
+        all_requirements = experience_reqs + skills_reqs + software_reqs
+        
+        for req in all_requirements:
             match = next((f"My time at {job} helped me develop {desc}" 
                           for job, desc in relevant_experience.items() if req in desc), None)
             if match:
