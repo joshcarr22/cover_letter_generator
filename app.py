@@ -106,9 +106,9 @@ def generate_cover_letter(job_data):
         
         # Match your past jobs to new role requirements
         relevant_experience = {
-            "Mincham Aviation": "regulated workshop environments",
-            "University of Glasgow": "wind tunnel tests & structured procedures",
-            "Buzz Drones": "manual milling & CNC machining skills"
+            "Mincham Aviation": "rebuilding and maintaining heavy machinery and engines",
+            "University of Glasgow": "designing and testing mechanical systems in research environments",
+            "Buzz Drones": "manufacturing and assembling precision components for drones"
         }
         
         # Find most relevant matches
@@ -128,7 +128,7 @@ def generate_cover_letter(job_data):
         
         for req in all_requirements:
             match = next((f"My time at {job} helped me develop {desc}" 
-                          for job, desc in relevant_experience.items() if req in desc), None)
+                          for job, desc in relevant_experience.items() if req.lower() in desc.lower()), None)
             if match:
                 matched_experience.append(match)
             else:
@@ -143,13 +143,13 @@ def generate_cover_letter(job_data):
         
         Dear Hiring Manager,
         
-        I am writing to apply for the {job_title} position at {company_name} as advertised. With a robust background in aerospace engineering, specifically in turbojet design and build, combined with experience in high-precision manufacturing environments, I am confident in my ability to contribute effectively to your team.
+        I am writing to apply for the {job_title} position at {company_name} as advertised. With a robust background in mechanical engineering, including experience in rebuilding engines, manufacturing precision components, and designing mechanical systems, I am confident in my ability to contribute effectively to your team.
         
         Throughout my career, I have developed expertise that aligns with the key competencies required for this role:
         
-        - {matched_experience[0] if len(matched_experience) > 0 else ""}
-        - {matched_experience[1] if len(matched_experience) > 1 else ""}
-        - {matched_experience[2] if len(matched_experience) > 2 else ""}
+        - {matched_experience[0] if len(matched_experience) > 0 else "Experience in rebuilding and maintaining heavy machinery and engines"}
+        - {matched_experience[1] if len(matched_experience) > 1 else "Proficiency in designing and testing mechanical systems"}
+        - {matched_experience[2] if len(matched_experience) > 2 else "Hands-on experience in manufacturing and assembling precision components"}
         
         I am particularly enthusiastic about the opportunity to apply my technical expertise and problem-solving skills to {company_name}, where I am eager to contribute to the company’s ongoing success. 
         
@@ -160,11 +160,11 @@ def generate_cover_letter(job_data):
         Joshua Carr
         """
 
-        # Append missing experience notes
+        # Append missing experience notes (limit to 3 key skills)
         if unmatched_skills:
             cover_letter += f"\n\n### Areas Where Experience May Not Fully Align\n"
             cover_letter += "If my experience does not fully meet a job requirement, I have leveraged:\n\n"
-            for skill in unmatched_skills:
+            for skill in unmatched_skills[:3]:  # Limit to 3 unmatched skills
                 cover_letter += f"- While I have not worked directly with {skill}, I have developed comparable expertise through related projects.\n"
 
         logger.info(f"Generated cover letter: {cover_letter[:100]}...")  # Log first 100 chars
