@@ -102,7 +102,7 @@ def generate_cover_letter(job_data):
         experience_reqs = job_data.get("experience", [])
         skills_reqs = job_data.get("skills", [])
         software_reqs = job_data.get("software", [])
-        additional_reqs = job_data.get("additional_requirements", [])
+        additional_reqs = job_data.get("additional_requirements", "")
         
         # Match your past jobs to new role requirements
         relevant_experience = {
@@ -116,7 +116,15 @@ def generate_cover_letter(job_data):
         unmatched_skills = []
         
         # Combine all requirements into a single list
-        all_requirements = experience_reqs + skills_reqs + software_reqs
+        all_requirements = []
+        if isinstance(experience_reqs, list):
+            all_requirements.extend(experience_reqs)
+        if isinstance(skills_reqs, list):
+            all_requirements.extend(skills_reqs)
+        if isinstance(software_reqs, list):
+            all_requirements.extend(software_reqs)
+        if isinstance(additional_reqs, str) and additional_reqs:
+            all_requirements.append(additional_reqs)
         
         for req in all_requirements:
             match = next((f"My time at {job} helped me develop {desc}" 
