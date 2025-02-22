@@ -106,9 +106,9 @@ def generate_cover_letter(job_data):
         
         # Match your past jobs to new role requirements
         relevant_experience = {
-            "Mincham Aviation": "rebuilding and maintaining heavy machinery and engines",
-            "University of Glasgow": "designing and testing mechanical systems in research environments",
-            "Buzz Drones": "manufacturing and assembling precision components for drones"
+            "Mincham Aviation": "rebuilding and maintaining industrial equipment",
+            "University of Glasgow": "designing and prototyping mechanical systems",
+            "Buzz Drones": "manufacturing high-precision components"
         }
         
         # Find most relevant matches
@@ -134,6 +134,12 @@ def generate_cover_letter(job_data):
             else:
                 unmatched_skills.append(req)  # Note unmatched skills
         
+        # Extract main job description keywords
+        job_description = job_data.get("job_description", "")
+        main_keywords = ["rebuilding engines", "manufacturing precision components", "designing mechanical systems"]
+        if job_description:
+            main_keywords = [word for word in main_keywords if word in job_description.lower()]
+        
         # Generate cover letter content
         cover_letter = f"""
         {datetime.today().strftime('%d %B %Y')}
@@ -143,15 +149,15 @@ def generate_cover_letter(job_data):
         
         Dear Hiring Manager,
         
-        I am writing to apply for the {job_title} position at {company_name} as advertised. With a robust background in mechanical engineering, including experience in rebuilding engines, manufacturing precision components, and designing mechanical systems, I am confident in my ability to contribute effectively to your team.
+        As a mechanical engineer with expertise in {main_keywords[0] if main_keywords else "industrial equipment"}, I am excited to apply for the {job_title} role at {company_name}. My background in {relevant_experience["Mincham Aviation"]}, {relevant_experience["University of Glasgow"]}, and {relevant_experience["Buzz Drones"]}, along with my passion for innovation, positions me as a strong candidate for this opportunity.
         
-        Throughout my career, I have developed expertise that aligns with the key competencies required for this role:
+        As you are seeking an engineer who can {experience_reqs[0] if experience_reqs else "deliver results in fast-paced environments"}, I bring a proven track record in {relevant_experience["Mincham Aviation"]}, {relevant_experience["University of Glasgow"]}, and {relevant_experience["Buzz Drones"]}. Below, I have highlighted how my background aligns with {company_name}'s needs:
         
-        - {matched_experience[0] if len(matched_experience) > 0 else "Experience in rebuilding and maintaining heavy machinery and engines"}
-        - {matched_experience[1] if len(matched_experience) > 1 else "Proficiency in designing and testing mechanical systems"}
-        - {matched_experience[2] if len(matched_experience) > 2 else "Hands-on experience in manufacturing and assembling precision components"}
+        - My experience in {relevant_experience["Mincham Aviation"]} equips me to {main_keywords[0] if main_keywords else "rebuild and optimize industrial machinery"}.
+        - My work in {relevant_experience["University of Glasgow"]} has honed my ability to {main_keywords[1] if len(main_keywords) > 1 else "design and prototype mechanical systems"}.
+        - My role at {relevant_experience["Buzz Drones"]} ensures I can {main_keywords[2] if len(main_keywords) > 2 else "manufacture high-precision components"}.
         
-        I am particularly enthusiastic about the opportunity to apply my technical expertise and problem-solving skills to {company_name}, where I am eager to contribute to the company’s ongoing success. 
+        I am eager to bring my technical expertise and problem-solving skills to {company_name}, contributing to your ongoing success. 
         
         Thank you for considering my application. I look forward to the opportunity to discuss how my skills and experiences align with your needs.
         
