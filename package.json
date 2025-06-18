@@ -1,0 +1,7 @@
+{
+  "name": "cover-letter-generator",
+  "version": "1.0.0",
+  "engines": {
+    "node": ">=16.0.0"
+  }
+} 
