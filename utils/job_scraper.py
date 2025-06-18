@@ -75,12 +75,30 @@ async def _scrape_with_browser(url):
     """Internal function to scrape using pyppeteer."""
     browser = await launch(
         headless=True,
-        args=['--no-sandbox', '--disable-setuid-sandbox']
+        args=[
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--disable-gpu',
+            '--window-size=1920x1080'
+        ]
     )
     try:
         page = await browser.newPage()
         await page.setUserAgent(get_random_user_agent())
+        
+        # Set viewport
+        await page.setViewport({'width': 1920, 'height': 1080})
+        
+        # Set extra headers
+        await page.setExtraHTTPHeaders(get_random_headers())
+        
+        # Navigate with timeout
         await page.goto(url, {'waitUntil': 'networkidle0', 'timeout': 30000})
+        
+        # Wait for content to load
+        await page.waitForSelector('h1', {'timeout': 5000})
         
         # Get the content
         title = await page.evaluate('() => document.querySelector("h1")?.innerText || ""')
