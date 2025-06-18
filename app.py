@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 from openai import OpenAI
 from datetime import datetime
 import logging
+from utils.job_scraper import scrape_job_details, interpret_job_details
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -18,81 +19,6 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-def scrape_job_details(url):
-    """Fetch job details from Seek job posting."""
-    try:
-        logger.info(f"Fetching job details from URL: {url}")
-        response = requests.get(url)
-        response.raise_for_status()
-    except Exception as e:
-        logger.error(f"Error fetching URL '{url}': {e}")
-        raise
-
-    soup = BeautifulSoup(response.text, 'html.parser')
-    logger.info("Successfully parsed HTML content")
-
-    selectors = [
-        {"tag": "div", "attrs": {"data-automation": "jobAdDetails"}},
-        {"tag": "div", "attrs": {"class": "job-description"}},
-        {"tag": "div", "attrs": {"class": "description"}},
-    ]
-    
-    for sel in selectors:
-        element = soup.find(sel["tag"], attrs=sel["attrs"])
-        if element:
-            text = element.get_text(separator="\n").strip()
-            if len(text) > 100:
-                logger.info(f"Extracted job details: {text[:100]}...")  # Log first 100 chars
-                return text
-    
-    logger.warning("No job details found using selectors. Returning full text.")
-    return soup.get_text(separator="\n").strip()
-
-def interpret_job_details(raw_text):
-    """Use OpenAI API to interpret job posting and extract key details."""
-    try:
-        prompt = f"""
-        Extract and format job details in structured JSON:
-        - "job_title"
-        - "company_name"
-        - "job_description"
-        - "experience"
-        - "skills"
-        - "software"
-        - "additional_requirements"
-        - "preferred_qualifications"
-        - "other_notes"
-        
-        Job Posting:
-        {raw_text}
-        
-        Return only a valid JSON object.
-        """
-        logger.info("Sending request to OpenAI API")
-        response = client.chat.completions.create(
-            model="gpt-4-turbo",
-            messages=[
-                {"role": "system", "content": "You are an expert at extracting structured data from job descriptions."},
-                {"role": "user", "content": prompt}
-            ]
-        )
-        job_details_str = response.choices[0].message.content.strip()
-
-        # Remove triple backticks and "json" prefix if present
-        if job_details_str.startswith("```json"):
-            job_details_str = job_details_str[7:-3].strip()  # Remove ```json and trailing ```
-        elif job_details_str.startswith("```"):
-            job_details_str = job_details_str[3:-3].strip()  # Remove ``` and trailing ```
-
-        logger.info(f"OpenAI response (cleaned): {job_details_str}")
-        return json.loads(job_details_str)
-    except json.JSONDecodeError as e:
-        logger.error(f"Error parsing JSON: {e}")
-        raise
-    except Exception as e:
-        logger.error(f"Error interpreting job details: {e}")
-        raise
 
 def generate_cover_letter(job_data):
     """Generate a personalized cover letter based on extracted job details."""
@@ -201,13 +127,22 @@ def process_cover_letter():
 
         logger.info("Generating cover letter")
         cover_letter = generate_cover_letter(job_data)
-        logger.info(f"Generated cover letter: {cover_letter[:100]}...")  # Log first 100 chars
-        
-        return jsonify({"cover_letter": cover_letter})
+        logger.info("Successfully generated cover letter")
+
+        return jsonify({
+            "job_data": job_data,
+            "cover_letter": cover_letter
+        })
 
     except Exception as e:
         logger.error(f"Error processing cover letter: {e}")
         return jsonify({"error": str(e)}), 500
 
+@app.route("/health")
+def health_check():
+    """Health check endpoint for Render."""
+    return jsonify({"status": "healthy"}), 200
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000, debug=True)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port, debug=False)  # Set debug=False for production
