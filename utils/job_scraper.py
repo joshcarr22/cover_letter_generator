@@ -7,6 +7,8 @@ import time
 import logging
 import json
 import random
+from fake_useragent import UserAgent
+import cloudscraper
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -15,17 +17,23 @@ logger = logging.getLogger(__name__)
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def get_random_user_agent():
-    """Return a random modern browser user agent."""
-    user_agents = [
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2.1 Safari/605.1.15",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Edg/122.0.0.0",
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-    ]
-    return random.choice(user_agents)
+    """Return a random modern browser user agent using fake-useragent."""
+    try:
+        ua = UserAgent()
+        return ua.random
+    except Exception as e:
+        logger.warning(f"Error getting random user agent: {e}")
+        # Fallback user agents if fake-useragent fails
+        user_agents = [
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2.1 Safari/605.1.15",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Edg/122.0.0.0",
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        ]
+        return random.choice(user_agents)
 
 def get_random_headers():
     """Generate random browser-like headers."""
@@ -49,7 +57,8 @@ def get_random_headers():
         "Referer": "https://www.seek.com.au/",
         "Origin": "https://www.seek.com.au",
         "Pragma": "no-cache",
-        "Sec-GPC": "1"
+        "Sec-GPC": "1",
+        "Cookie": f"seek_rbp={random.randint(1000000, 9999999)}; seek_visitor={random.randint(1000000, 9999999)}"
     }
 
 def clean_seek_url(raw_url):
@@ -63,6 +72,27 @@ def clean_seek_url(raw_url):
         logger.error(f"Error cleaning URL: {e}")
         raise ValueError(f"Invalid URL format: {str(e)}")
 
+def simulate_human_behavior(session, url):
+    """Simulate human-like browsing behavior."""
+    try:
+        # Visit homepage first
+        logger.info("Visiting Seek homepage")
+        session.get("https://www.seek.com.au/", timeout=10)
+        time.sleep(random.uniform(2, 4))
+
+        # Visit search page
+        logger.info("Visiting search page")
+        session.get("https://www.seek.com.au/jobs", timeout=10)
+        time.sleep(random.uniform(1, 3))
+
+        # Visit the actual job page
+        logger.info(f"Visiting job page: {url}")
+        response = session.get(url, timeout=15)
+        return response
+    except Exception as e:
+        logger.error(f"Error in human behavior simulation: {e}")
+        raise
+
 def scrape_job_details(url):
     """Fetch the job posting page and extract the main job details."""
     try:
@@ -70,8 +100,14 @@ def scrape_job_details(url):
         clean_url = clean_seek_url(url)
         logger.info(f"Cleaned URL: {clean_url}")
         
-        # Create a session to maintain cookies
-        session = requests.Session()
+        # Create a cloudscraper session to bypass Cloudflare
+        scraper = cloudscraper.create_scraper(
+            browser={
+                'browser': 'chrome',
+                'platform': 'windows',
+                'desktop': True
+            }
+        )
         
         # Add a random delay between 1-3 seconds to mimic human behavior
         time.sleep(random.uniform(1, 3))
@@ -79,25 +115,8 @@ def scrape_job_details(url):
         # Get random headers
         headers = get_random_headers()
         
-        # First, visit the homepage to get cookies
-        logger.info("Visiting Seek homepage to get cookies")
-        try:
-            session.get("https://www.seek.com.au/", headers=headers, timeout=10)
-        except requests.exceptions.RequestException as e:
-            logger.warning(f"Error visiting homepage: {e}")
-        
-        # Add another small delay
-        time.sleep(random.uniform(0.5, 1.5))
-        
-        # Update headers for the job page request
-        headers.update({
-            "Referer": "https://www.seek.com.au/",
-            "Origin": "https://www.seek.com.au"
-        })
-        
-        logger.info("Making request to job posting with browser-like headers")
-        # Make the request with the session
-        response = session.get(clean_url, headers=headers, timeout=15)
+        # Simulate human behavior
+        response = simulate_human_behavior(scraper, clean_url)
         
         # Check if we got a 403
         if response.status_code == 403:
@@ -135,7 +154,9 @@ def scrape_job_details(url):
         {"tag": "div", "attrs": {"class": "job-info-content"}},
         {"tag": "div", "attrs": {"data-automation": "jobDescriptionContent"}},
         {"tag": "div", "attrs": {"class": "yvsb870"}},  # New Seek class
-        {"tag": "div", "attrs": {"class": "yvsb870 yvsb871"}}  # New Seek class
+        {"tag": "div", "attrs": {"class": "yvsb870 yvsb871"}},  # New Seek class
+        {"tag": "div", "attrs": {"class": "job-description__content"}},  # Another Seek class
+        {"tag": "div", "attrs": {"class": "job-description__content__content"}}  # Another Seek class
     ]
 
     for sel in selectors:

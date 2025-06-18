@@ -28,3 +28,5 @@ gunicorn
 flask
 flask_cors
 python_docx
+fake-useragent>=1.4.0
+cloudscraper>=1.2.71
