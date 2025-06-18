@@ -80,9 +80,9 @@ Joshua Carr
 """
 
         if unmatched_skills:
-            cover_letter += "\n\n### Skills I’m Eager to Learn:\n"
+            cover_letter += "\n\n### Skills I'm Eager to Learn:\n"
             for skill in unmatched_skills[:3]:
-                cover_letter += f"- While I haven’t worked with {skill}, I’ve developed adjacent skills in related domains.\n"
+                cover_letter += f"- While I haven't worked with {skill}, I've developed adjacent skills in related domains.\n"
 
         return cover_letter.strip()
 
@@ -122,4 +122,4 @@ def health_check():
 # === App Entry Point ===
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port, debug=False)
