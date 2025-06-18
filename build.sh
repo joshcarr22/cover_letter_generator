@@ -8,9 +8,8 @@ pip install --upgrade pip
 # Install Python dependencies
 pip install -r requirements.txt
 
-# Install pyppeteer and its dependencies
-pip install pyppeteer
-python -c "import pyppeteer.chromium_downloader; pyppeteer.chromium_downloader.download_chromium()"
+# Download Chromium for pyppeteer
+python -c "import pyppeteer; pyppeteer.install()"
 
-# Test the health endpoint
-curl https://cover-letter-generator-2.onrender.com/health 
+# Optional: Ping health check (use your actual app URL)
+curl https://cover-letter-generator-2.onrender.com/health || true
