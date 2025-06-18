@@ -2,6 +2,8 @@ import os
 import json
 from datetime import datetime
 from openai import OpenAI
+import requests
+from bs4 import BeautifulSoup
 
 # Initialize OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -66,4 +68,12 @@ def generate_cover_letter(job_details, user_letter):
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
-        raise Exception(f"OpenAI error: {e}") 
+        raise Exception(f"OpenAI error: {e}")
+
+url = "https://www.seek.com.au/job/84825118"
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+}
+response = requests.get(url, headers=headers)
+soup = BeautifulSoup(response.text, "html.parser")
+print(soup.get_text()[:2000])  # Print first 2000 chars of raw text 
