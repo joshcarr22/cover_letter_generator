@@ -14,6 +14,11 @@ CORS(app)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# === Root Route ===
+@app.route("/")
+def index():
+    return jsonify({"message": "Cover Letter Generator API is running"}), 200
+
 # === Cover Letter Generator ===
 def generate_cover_letter(job_data):
     try:
