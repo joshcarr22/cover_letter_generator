@@ -9,7 +9,8 @@ import json
 import random
 from fake_useragent import UserAgent
 import cloudscraper
-from playwright.sync_api import sync_playwright
+import asyncio
+from pyppeteer import launch
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -70,22 +71,40 @@ def clean_seek_url(raw_url):
         logger.error(f"Error cleaning URL: {e}")
         raise ValueError(f"Invalid URL format: {str(e)}")
 
-def scrape_job_details(url):
-    """Fetch the job posting page and extract the main job details using Playwright."""
+async def _scrape_with_browser(url):
+    """Internal function to scrape using pyppeteer."""
+    browser = await launch(
+        headless=True,
+        args=['--no-sandbox', '--disable-setuid-sandbox']
+    )
     try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            page = browser.new_page()
-            page.goto(url, timeout=15000)
+        page = await browser.newPage()
+        await page.setUserAgent(get_random_user_agent())
+        await page.goto(url, {'waitUntil': 'networkidle0', 'timeout': 30000})
+        
+        # Get the content
+        title = await page.evaluate('() => document.querySelector("h1")?.innerText || ""')
+        company = await page.evaluate('() => document.querySelector(\'[data-automation="advertiser-name"]\')?.innerText || ""')
+        location = await page.evaluate('() => document.querySelector(\'[data-automation="job-detail-location"]\')?.innerText || ""')
+        description = await page.evaluate('() => document.querySelector(\'[data-automation="jobAdDetails"]\')?.innerText || ""')
+        
+        return f"{title}\n\n{company}\n{location}\n\n{description}"
+    finally:
+        await browser.close()
 
-            title = page.locator("h1").inner_text()
-            company = page.locator('[data-automation="advertiser-name"]').inner_text()
-            location = page.locator('[data-automation="job-detail-location"]').inner_text()
-            description = page.locator('[data-automation="jobAdDetails"]').inner_text()
-
-            browser.close()
-
-            return f"{title}\n\n{company}\n{location}\n\n{description}"
+def scrape_job_details(url):
+    """Fetch the job posting page and extract the main job details using pyppeteer."""
+    try:
+        clean_url = clean_seek_url(url)
+        logger.info(f"Scraping URL: {clean_url}")
+        
+        # Run the async function
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(_scrape_with_browser(clean_url))
+        loop.close()
+        
+        return result
     except Exception as e:
         logger.error(f"Error scraping job details: {e}")
         raise Exception(f"Seek scraping failed: {e}")
