@@ -22,7 +22,6 @@ soupsieve==2.6
 tokenizers==0.20.0
 tqdm==4.66.5
 typing_extensions==4.12.2
-urllib3>=1.25.8,<2.0.0
 openai>=1.61.0
 gunicorn
 flask==3.0.2
