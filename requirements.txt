@@ -30,4 +30,4 @@ flask_cors
 python_docx
 fake-useragent>=1.4.0
 cloudscraper>=1.2.71
-playwright==1.42.0
+pyppeteer==1.0.2
