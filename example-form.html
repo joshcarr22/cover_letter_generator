@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cover Letter Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        form {
+            margin-bottom: 30px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        input[type="url"], textarea, input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+        
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        #result {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        
+        .info-box {
+            background-color: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .info-box h3 {
+            margin-top: 0;
+            color: #0066cc;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Cover Letter Generator</h1>
+        
+        <div class="info-box">
+            <h3>How it works:</h3>
+            <ol>
+                <li>Enter a Seek job URL</li>
+                <li>Add your existing cover letter (or upload a file)</li>
+                <li>Get a personalized cover letter tailored to the job!</li>
+            </ol>
+        </div>
+
+        <form id="cover-letter-form">
+            <label for="job-url">Enter Seek Job URL: *</label>
+            <input 
+                type="url" 
+                id="job-url" 
+                name="job-url" 
+                placeholder="https://www.seek.com.au/job/..." 
+                required
+            >
+
+            <label for="cover-letter-text">Enter your cover letter:</label>
+            <textarea 
+                id="cover-letter-text" 
+                name="cover-letter-text" 
+                rows="8" 
+                placeholder="Type or paste your cover letter here... (optional - we'll use a default profile if empty)"
+            ></textarea>
+
+            <label for="file-upload">Or upload a file (TXT/DOCX only):</label>
+            <input 
+                type="file" 
+                id="file-upload" 
+                name="file-upload" 
+                accept=".txt,.docx"
+            >
+
+            <button type="submit" id="submit-btn">✨ Generate Cover Letter</button>
+        </form>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        // Cover Letter Generator Form Handler
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('cover-letter-form');
+            const resultDiv = document.getElementById('result');
+            const submitBtn = document.getElementById('submit-btn');
+            
+            // Replace with your actual API URL
+            const API_BASE_URL = 'https://cover-letter-generator-2.onrender.com';
+            // For local testing: const API_BASE_URL = 'http://localhost:5000';
+            
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                // Disable submit button and show loading state
+                submitBtn.disabled = true;
+                submitBtn.textContent = '🔄 Processing...';
+                resultDiv.innerHTML = '<div style="color: blue; text-align: center; padding: 20px;">🔄 Processing your request... This may take 30-60 seconds.</div>';
+                
+                // Get form data
+                const formData = new FormData(form);
+                
+                try {
+                    // Send request to Flask API
+                    const response = await fetch(`${API_BASE_URL}/process-cover-letter`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        // Success - display the generated cover letter
+                        resultDiv.innerHTML = `
+                            <div style="color: green; margin-bottom: 20px; text-align: center; font-size: 18px;">
+                                ✅ <strong>Cover Letter Generated Successfully!</strong>
+                            </div>
+                            
+                            <div style="border: 1px solid #ddd; padding: 15px; background-color: #f9f9f9; margin-bottom: 20px; border-radius: 5px;">
+                                <h3 style="margin-top: 0; color: #333;">📋 Job Details Extracted:</h3>
+                                <p><strong>Title:</strong> ${result.job_data.job_title || 'Not specified'}</p>
+                                <p><strong>Company:</strong> ${result.job_data.company_name || 'Not specified'}</p>
+                                <p><strong>Skills Required:</strong> ${Array.isArray(result.job_data.skills) ? result.job_data.skills.join(', ') : 'Not specified'}</p>
+                            </div>
+                            
+                            <div style="border: 1px solid #ddd; padding: 20px; background-color: #f0f8ff; border-radius: 5px;">
+                                <h3 style="margin-top: 0; color: #333;">📝 Your Personalized Cover Letter:</h3>
+                                <div style="white-space: pre-wrap; font-family: 'Times New Roman', serif; line-height: 1.6; background-color: white; padding: 20px; border-radius: 5px;">
+                                    ${result.cover_letter}
+                                </div>
+                            </div>
+                            
+                            <div style="margin-top: 20px; text-align: center;">
+                                <button onclick="copyToClipboard()" style="background-color: #4CAF50; color: white; padding: 12px 24px; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px; font-size: 14px;">
+                                    📋 Copy Cover Letter
+                                </button>
+                                <button onclick="downloadAsText()" style="background-color: #008CBA; color: white; padding: 12px 24px; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">
+                                    💾 Download as TXT
+                                </button>
+                            </div>
+                        `;
+                        
+                        // Store the cover letter for copy/download functions
+                        window.generatedCoverLetter = result.cover_letter;
+                        
+                    } else {
+                        // Error from API
+                        resultDiv.innerHTML = `
+                            <div style="color: red; padding: 20px; background-color: #ffe6e6; border-radius: 5px; border: 1px solid #ff9999;">
+                                ❌ <strong>Error:</strong> ${result.error}
+                            </div>
+                        `;
+                    }
+                    
+                } catch (error) {
+                    // Network or other errors
+                    console.error('Error:', error);
+                    resultDiv.innerHTML = `
+                        <div style="color: red; padding: 20px; background-color: #ffe6e6; border-radius: 5px; border: 1px solid #ff9999;">
+                            ❌ <strong>Network Error:</strong> Unable to connect to the server. 
+                            Please check your internet connection and try again.
+                        </div>
+                    `;
+                } finally {
+                    // Re-enable submit button
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '✨ Generate Cover Letter';
+                }
+            });
+        });
+
+        // Helper function to copy cover letter to clipboard
+        function copyToClipboard() {
+            if (window.generatedCoverLetter) {
+                navigator.clipboard.writeText(window.generatedCoverLetter).then(function() {
+                    alert('✅ Cover letter copied to clipboard!');
+                }).catch(function(err) {
+                    console.error('Could not copy text: ', err);
+                    // Fallback for older browsers
+                    const textArea = document.createElement('textarea');
+                    textArea.value = window.generatedCoverLetter;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    alert('✅ Cover letter copied to clipboard!');
+                });
+            }
+        }
+
+        // Helper function to download cover letter as text file
+        function downloadAsText() {
+            if (window.generatedCoverLetter) {
+                const blob = new Blob([window.generatedCoverLetter], { type: 'text/plain' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `cover_letter_${new Date().toISOString().split('T')[0]}.txt`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                alert('✅ Cover letter downloaded!');
+            }
+        }
+    </script>
+</body>
+</html> 
