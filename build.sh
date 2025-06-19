@@ -5,11 +5,8 @@ set -o errexit
 # Upgrade pip
 pip install --upgrade pip
 
-# Install Python dependencies
+# Install dependencies
 pip install -r requirements.txt
 
-# Download Chromium for pyppeteer (correct modern way)
-python -c "import pyppeteer.chromium_downloader as d; d.download_chromium()"
-
-# Test the health endpoint (optional)
-curl https://cover-letter-generator-2.onrender.com/health || true
+# Run health check
+curl https://cover-letter-generator-2.onrender.com/health

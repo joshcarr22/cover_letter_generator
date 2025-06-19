@@ -1,59 +1,33 @@
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urlparse
 import logging
 
 logger = logging.getLogger(__name__)
 
-# === Bright Data Proxy Configuration ===
-BRIGHTDATA_USERNAME = "brd-customer-hl_9930b4f7-zone-residential_proxy1"
-BRIGHTDATA_PASSWORD = "t2fismzy95x8"
-BRIGHTDATA_HOST = "brd.superproxy.io"
-BRIGHTDATA_PORT = "33335"
+# === Bright Data Proxy Credentials ===
+BRIGHT_DATA_HOST = "brd.superproxy.io"
+BRIGHT_DATA_PORT = 33335
+BRIGHT_DATA_USERNAME = "brd-customer-hl_9930b4f7-zone-residential_proxy1"
+BRIGHT_DATA_PASSWORD = "t2fismzy95x8"
 
-def get_brightdata_proxies():
-    """Return proxy dictionary for Bright Data."""
-    proxy_auth = f"{BRIGHTDATA_USERNAME}:{BRIGHTDATA_PASSWORD}@{BRIGHTDATA_HOST}:{BRIGHTDATA_PORT}"
-    return {
-        "http": f"http://{proxy_auth}",
-        "https": f"http://{proxy_auth}",
-    }
-
-def clean_seek_url(raw_url):
-    """Clean Seek job URL to avoid issues with query params or fragments."""
-    parsed = urlparse(raw_url)
-    return f"https://{parsed.netloc}{parsed.path}"
-
-def scrape_job_details(url):
-    """Scrape job description text from Seek using Bright Data proxy."""
-    cleaned_url = clean_seek_url(url)
-    proxies = get_brightdata_proxies()
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                      "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Referer": "https://www.seek.com.au/"
-    }
-
+def scrape_job_details(job_url):
+    """Scrape raw HTML job details from Seek using Bright Data proxy."""
     try:
-        response = requests.get(cleaned_url, headers=headers, proxies=proxies, timeout=30)
-        response.raise_for_status()
+        proxies = {
+            "http": f"http://{BRIGHT_DATA_USERNAME}:{BRIGHT_DATA_PASSWORD}@{BRIGHT_DATA_HOST}:{BRIGHT_DATA_PORT}",
+            "https": f"http://{BRIGHT_DATA_USERNAME}:{BRIGHT_DATA_PASSWORD}@{BRIGHT_DATA_HOST}:{BRIGHT_DATA_PORT}"
+        }
+
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+            "Accept-Language": "en-US,en;q=0.9"
+        }
+
+        response = requests.get(job_url, headers=headers, proxies=proxies, timeout=20, verify=False)
         soup = BeautifulSoup(response.text, "html.parser")
 
-        # Try multiple possible containers for job description
-        selectors = [
-            {"tag": "div", "attrs": {"data-automation": "jobAdDetails"}},
-            {"tag": "div", "attrs": {"class": "job-description"}},
-            {"tag": "div", "attrs": {"class": "description"}},
-        ]
-
-        for sel in selectors:
-            section = soup.find(sel["tag"], sel["attrs"])
-            if section:
-                return section.get_text(separator="\n", strip=True)
-
-        # Fallback: return full text
-        return soup.get_text(separator="\n", strip=True)
+        # Basic fallback: collect visible text
+        return soup.get_text(separator="\n")
 
     except Exception as e:
         logger.error(f"Seek scraping failed: {e}")
