@@ -15,21 +15,34 @@ def interpret_job_details(raw_text):
     prompt = f"""
     Extract and format job details in structured JSON format. Return ONLY valid JSON, no other text.
 
+    IMPORTANT: Filter out any irrelevant content such as:
+    - Advertisements or marketing content
+    - Website navigation elements
+    - Proxy service mentions (like BrightData, Bright Data, etc.)
+    - Cookie notices or privacy policies
+    - Social media links or unrelated content
+    
+    Focus ONLY on the actual job posting content including:
+    - Job title and company name
+    - Job description and responsibilities
+    - Required skills and experience
+    - Qualifications and software requirements
+
     Required fields:
     - "job_title": string
     - "company_name": string  
-    - "job_description": string
-    - "experience": array of strings
-    - "skills": array of strings
-    - "software": array of strings
-    - "additional_requirements": string
-    - "preferred_qualifications": array of strings
-    - "other_notes": string
+    - "job_description": string (summary of main responsibilities)
+    - "experience": array of strings (years required, specific experience)
+    - "skills": array of strings (technical and soft skills)
+    - "software": array of strings (specific software/tools mentioned)
+    - "additional_requirements": string (education, certifications, etc.)
+    - "preferred_qualifications": array of strings (nice-to-have qualifications)
+    - "other_notes": string (location, work type, salary range if mentioned)
 
-    Job Posting:
+    Job Posting Text (may contain irrelevant content to filter out):
     {raw_text[:3000]}
 
-    Return only valid JSON:
+    Return only valid JSON focusing on the actual job posting content:
     """
 
     client = get_openai_client()
@@ -38,7 +51,7 @@ def interpret_job_details(raw_text):
         response = client.chat.completions.create(
             model="gpt-4-turbo",
             messages=[
-                {"role": "system", "content": "You are an expert at extracting structured data from job descriptions. Return only valid JSON, no markdown or extra text."},
+                {"role": "system", "content": "You are an expert at extracting structured job data from web pages. Filter out irrelevant content like ads, navigation, and proxy service mentions. Focus only on actual job posting content. Return only valid JSON, no markdown or extra text."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=1000,
@@ -80,22 +93,31 @@ def generate_cover_letter(job_details, user_letter):
     """Generate a personalized cover letter using OpenAI."""
     current_date = datetime.today().strftime("%d %B %Y")
     prompt = f"""
-    Generate a professional cover letter. Return only the cover letter text, no markdown or extra formatting.
+    Generate a professional, personalized cover letter. Return only the cover letter text, no markdown or extra formatting.
 
-    Job Title: {job_details.get('job_title', 'Unknown Title')}
-    Company Name: {job_details.get('company_name', 'Unknown Company')}
-    Required Skills: {", ".join(job_details.get('skills', []))}
+    Job Details:
+    - Job Title: {job_details.get('job_title', 'Unknown Title')}
+    - Company Name: {job_details.get('company_name', 'Unknown Company')}
+    - Job Description: {job_details.get('job_description', '')}
+    - Required Skills: {", ".join(job_details.get('skills', []))}
+    - Required Experience: {", ".join(job_details.get('experience', []))}
+    - Software/Tools: {", ".join(job_details.get('software', []))}
     
-    Base this cover letter on the user's existing letter below, but personalize it for the job above:
+    Base this cover letter on the user's existing letter/profile below, but personalize it specifically for the job above:
     
     {user_letter}
     
     Requirements:
     - Use today's date: {current_date}
-    - Professional tone
-    - Highlight relevant experience
+    - Professional, engaging tone
+    - Highlight relevant experience from user's background that matches the job requirements
+    - Address specific skills and requirements mentioned in the job posting
     - Keep it concise (under 400 words)
-    - Return only the cover letter text
+    - Use the exact company name and job title from the job posting
+    - Return only the cover letter text, no additional formatting
+    
+    DO NOT mention irrelevant companies like BrightData or proxy services.
+    Focus only on the actual job and company from the posting.
     """
 
     client = get_openai_client()
@@ -104,7 +126,7 @@ def generate_cover_letter(job_details, user_letter):
         response = client.chat.completions.create(
             model="gpt-4-turbo",
             messages=[
-                {"role": "system", "content": "You are a professional cover letter writer. Return only the cover letter text, no markdown formatting."},
+                {"role": "system", "content": "You are a professional cover letter writer. Create personalized, engaging cover letters that highlight relevant experience for specific job postings. Return only the cover letter text, no markdown formatting."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=800,

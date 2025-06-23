@@ -26,19 +26,50 @@ def extract_text_from_file(file):
     else:
         raise ValueError("Unsupported file format. Please use TXT or DOCX files.")
 
-@app.route("/process-cover-letter", methods=["POST"])
-def process_cover_letter():
-    """Main endpoint to process job URL and generate cover letter."""
-    logger.info("Request received at /process-cover-letter")
+@app.route("/extract-job-details", methods=["POST"])
+def extract_job_details():
+    """Step 1: Extract and parse job details from job URL."""
+    logger.info("Request received at /extract-job-details")
     
     # Handle both JSON and form data
     if request.is_json:
         data = request.get_json()
         job_url = data.get("job_url")
+    else:
+        job_url = request.form.get("job-url")
+
+    if not job_url:
+        return jsonify({"error": "No job URL provided"}), 400
+
+    try:
+        # Step 1: Scrape raw job text using Bright Data proxy
+        raw_text = scrape_job_details(job_url)
+        
+        # Step 2: Use GPT-4 to extract structured job information
+        job_data = interpret_job_details(raw_text)
+        
+        return jsonify({
+            "job_data": job_data,
+            "raw_text": raw_text[:2000],  # First 2000 chars for review
+            "success": True
+        })
+
+    except Exception as e:
+        logger.error(f"Job extraction error: {e}")
+        return jsonify({"error": str(e), "success": False}), 500
+
+@app.route("/generate-cover-letter", methods=["POST"])
+def generate_cover_letter_endpoint():
+    """Step 2: Generate cover letter from job details and user profile."""
+    logger.info("Request received at /generate-cover-letter")
+    
+    # Handle both JSON and form data
+    if request.is_json:
+        data = request.get_json()
+        job_data = data.get("job_data")
         user_cover_letter = data.get("cover_letter_text", "")
     else:
-        # Handle form data
-        job_url = request.form.get("job-url")
+        job_data = request.form.get("job_data")
         user_cover_letter = request.form.get("cover-letter-text", "")
         
         # Handle file upload
@@ -51,8 +82,16 @@ def process_cover_letter():
                 except Exception as e:
                     return jsonify({"error": f"File processing error: {str(e)}"}), 400
 
-    if not job_url:
-        return jsonify({"error": "No job URL provided"}), 400
+    if not job_data:
+        return jsonify({"error": "No job data provided"}), 400
+
+    # Parse job_data if it's a string
+    if isinstance(job_data, str):
+        import json
+        try:
+            job_data = json.loads(job_data)
+        except json.JSONDecodeError:
+            return jsonify({"error": "Invalid job data format"}), 400
 
     # Use default profile if no cover letter provided
     if not user_cover_letter.strip():
@@ -65,13 +104,7 @@ def process_cover_letter():
         """
 
     try:
-        # Step 1: Scrape raw job text using Bright Data proxy
-        raw_text = scrape_job_details(job_url)
-        
-        # Step 2: Use GPT-4 to extract structured job information
-        job_data = interpret_job_details(raw_text)
-        
-        # Step 3: Generate personalized cover letter using GPT-4
+        # Generate personalized cover letter using GPT-4
         cover_letter = generate_cover_letter(job_data, user_cover_letter)
 
         return jsonify({
@@ -81,8 +114,17 @@ def process_cover_letter():
         })
 
     except Exception as e:
-        logger.error(f"Processing error: {e}")
+        logger.error(f"Cover letter generation error: {e}")
         return jsonify({"error": str(e), "success": False}), 500
+
+@app.route("/process-cover-letter", methods=["POST"])
+def process_cover_letter():
+    """Legacy endpoint - redirects to two-step process."""
+    logger.info("Legacy endpoint called - redirecting to two-step process")
+    return jsonify({
+        "error": "This endpoint has been deprecated. Please use the two-step process: /extract-job-details then /generate-cover-letter",
+        "success": False
+    }), 400
 
 @app.route("/health")
 def health_check():
